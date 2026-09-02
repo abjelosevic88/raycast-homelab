@@ -41,13 +41,6 @@ export function fmtEta(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export function timeAgo(unixSeconds: number): string {
-  const s = Math.max(0, Math.floor(Date.now() / 1000 - unixSeconds));
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
-
 // ---------- qBittorrent (cookie auth, v5 API) ----------
 
 let qbitCookie: { value: string; host: string; at: number } | null = null;
@@ -165,12 +158,6 @@ interface SabQueue {
     }[];
   };
 }
-interface SabHistory {
-  history: {
-    slots: { nzo_id: string; name: string; status: string; size: string; fail_message: string; completed: number }[];
-  };
-}
-
 // ---------- combined ----------
 
 export interface DownloadItem {
@@ -191,14 +178,6 @@ export interface SeedItem {
   ratio: number;
 }
 
-export interface RecentItem {
-  id: string;
-  name: string;
-  ok: boolean;
-  detail: string;
-  when?: number; // unix seconds
-}
-
 export interface DownloadsData {
   qbit?: {
     dlSpeed: number;
@@ -206,7 +185,6 @@ export interface DownloadsData {
     downloading: DownloadItem[];
     seeding: SeedItem[];
     seedCount: number;
-    recent: RecentItem[];
   };
   qbitHint?: string;
   sab?: {
@@ -214,13 +192,11 @@ export interface DownloadsData {
     paused: boolean;
     timeLeft: string;
     items: DownloadItem[];
-    recent: RecentItem[];
   };
   errors: string[];
   fetchedAt: number;
 }
 
-const RECENT_LIMIT = 3;
 const SEED_LIMIT = 5;
 
 export async function loadDownloads(): Promise<DownloadsData> {
@@ -239,10 +215,7 @@ export async function loadDownloads(): Promise<DownloadsData> {
         qbitGet<QbitTorrent[]>("/api/v2/torrents/info?filter=downloading"),
         qbitGet<QbitTorrent[]>("/api/v2/torrents/info?filter=seeding"),
         qbitGet<QbitTransfer>("/api/v2/transfer/info"),
-        qbitGet<QbitTorrent[]>(
-          `/api/v2/torrents/info?filter=completed&sort=completion_on&reverse=true&limit=${RECENT_LIMIT}`,
-        ),
-      ]).then(([downloading, seeding, transfer, completed]) => {
+      ]).then(([downloading, seeding, transfer]) => {
         data.qbit = {
           dlSpeed: transfer.dl_info_speed,
           upSpeed: transfer.up_info_speed,
@@ -262,23 +235,13 @@ export async function loadDownloads(): Promise<DownloadsData> {
             .slice(0, SEED_LIMIT)
             .map((t) => ({ id: t.hash, name: t.name, upSpeed: t.upspeed, ratio: t.ratio })),
           seedCount: seeding.length,
-          recent: completed.map((t) => ({
-            id: t.hash,
-            name: t.name,
-            ok: true,
-            detail: fmtSize(t.size),
-            when: t.completion_on,
-          })),
         };
       }),
     );
   }
 
   tasks.push(
-    Promise.all([
-      sabGet<SabQueue>({ mode: "queue" }),
-      sabGet<SabHistory>({ mode: "history", start: "0", limit: String(RECENT_LIMIT) }),
-    ]).then(([q, h]) => {
+    sabGet<SabQueue>({ mode: "queue" }).then((q) => {
       data.sab = {
         speedBps: parseFloat(q.queue.kbpersec) * 1000,
         paused: q.queue.paused,
@@ -291,13 +254,6 @@ export async function loadDownloads(): Promise<DownloadsData> {
           eta: s.timeleft,
           state: s.status.toLowerCase(),
           paused: s.status === "Paused",
-        })),
-        recent: h.history.slots.map((s) => ({
-          id: s.nzo_id,
-          name: s.name,
-          ok: s.status === "Completed",
-          detail: s.status === "Completed" ? s.size : s.fail_message || s.status,
-          when: s.completed,
         })),
       };
     }),

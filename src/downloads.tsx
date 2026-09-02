@@ -1,16 +1,7 @@
 import { Action, ActionPanel, Color, Icon, List, showToast, Toast } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
-import {
-  DL_URLS,
-  DownloadItem,
-  fmtSpeed,
-  loadDownloads,
-  qbitToggle,
-  RecentItem,
-  sabToggle,
-  timeAgo,
-} from "./downloads-api";
+import { DL_URLS, DownloadItem, fmtSpeed, loadDownloads, qbitToggle, sabToggle } from "./downloads-api";
 
 const POLL_MS = 5000;
 
@@ -63,6 +54,7 @@ export default function Downloads() {
         title={item.name}
         subtitle={item.detail}
         accessories={[
+          { text: `${Math.round(item.progress * 100)}%`, tooltip: "progress" },
           ...(item.speed ? [{ text: item.speed }] : []),
           ...(item.eta && !item.paused ? [{ text: item.eta, tooltip: "time left" }] : []),
           { tag: { value: item.paused ? "paused" : item.state, color: stateColor(item) } },
@@ -77,23 +69,6 @@ export default function Downloads() {
             {common}
           </ActionPanel>
         }
-      />
-    );
-  }
-
-  function recentItem(r: RecentItem) {
-    return (
-      <List.Item
-        key={r.id}
-        icon={
-          r.ok
-            ? { source: Icon.CheckCircle, tintColor: Color.Green }
-            : { source: Icon.XMarkCircle, tintColor: Color.Red }
-        }
-        title={r.name}
-        subtitle={r.when ? `finished ${timeAgo(r.when)}` : undefined}
-        accessories={[{ text: r.detail }]}
-        actions={commonPanel}
       />
     );
   }
@@ -128,7 +103,6 @@ export default function Downloads() {
             actions={commonPanel}
           />
         ))}
-        {data?.qbit?.recent.map(recentItem)}
       </List.Section>
 
       <List.Section title="Usenet — SABnzbd">
@@ -146,7 +120,6 @@ export default function Downloads() {
           />
         )}
         {data?.sab?.items.map((i) => activeItem("sab", i))}
-        {data?.sab?.recent.map(recentItem)}
       </List.Section>
 
       {data && data.errors.length > 0 && (
