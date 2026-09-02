@@ -41,6 +41,15 @@ export default function Request() {
 
   const categoryTitle = DISCOVER_CATEGORIES.find((c) => c.id === category)?.title ?? "Discover";
 
+  // discover pages can repeat titles across pages; drop duplicates so keys stay unique
+  const seen = new Set<string>();
+  const items = (data ?? []).filter((r) => {
+    const k = `${r.mediaType}-${r.id}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
   return (
     <Grid
       isLoading={isLoading}
@@ -68,7 +77,7 @@ export default function Request() {
         />
       )}
       <Grid.Section title={searching ? "Search Results" : categoryTitle}>
-        {data?.map((r) => {
+        {items.map((r) => {
           const statusCode = r.mediaInfo?.status;
           const status = statusCode ? STATUS[statusCode] : undefined;
           const requestable = !status || statusCode === 1;
