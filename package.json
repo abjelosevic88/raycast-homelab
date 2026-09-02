@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "homelab",
   "title": "Homelab",
-  "description": "Live stats for the home server and NAS — CPU, RAM, disks, temps, uptime.",
+  "description": "Live stats for the home server and NAS \u2014 CPU, RAM, disks, temps, uptime.",
   "icon": "icon.png",
   "author": "aleksandar",
   "license": "MIT",
@@ -27,17 +27,17 @@
     {
       "name": "glancesUrl",
       "title": "Glances URL",
-      "description": "Base URL of the Glances v4 API on the server",
+      "description": "Base URL of the Glances v4 API on the server (leave empty for the built-in Caddy URL)",
       "type": "textfield",
-      "required": true,
+      "required": false,
       "default": "https://glances.bjelke.org"
     },
     {
       "name": "tempsUrl",
       "title": "Temps JSON URL",
-      "description": "URL of the temps.json published by temps-publish.timer",
+      "description": "URL of the temps.json published by temps-publish.timer (leave empty for the built-in Caddy URL)",
       "type": "textfield",
-      "required": true,
+      "required": false,
       "default": "https://home.bjelke.org/images/temps.json"
     },
     {

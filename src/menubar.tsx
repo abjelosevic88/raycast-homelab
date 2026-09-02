@@ -1,6 +1,6 @@
 import { Icon, MenuBarExtra, open } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
-import { fmtDisk, fmtGiB, loadStats } from "./api";
+import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
 
 export default function MenuBar() {
   const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], { keepPreviousData: true });
@@ -18,14 +18,14 @@ export default function MenuBar() {
           <MenuBarExtra.Item
             icon={Icon.Gauge}
             title={`CPU ${Math.round(data.cpu.percent)}% · load ${data.cpu.load1.toFixed(1)}`}
-            onAction={() => open("https://glances.bjelke.org")}
+            onAction={() => open(URLS.glances)}
           />
         )}
         {data?.mem && (
           <MenuBarExtra.Item
             icon={Icon.MemoryChip}
             title={`Memory ${fmtGiB(data.mem.free)} free / ${fmtGiB(data.mem.total)}`}
-            onAction={() => open("https://glances.bjelke.org")}
+            onAction={() => open(URLS.glances)}
           />
         )}
         {data?.fs.map((f) => (
@@ -33,7 +33,7 @@ export default function MenuBar() {
             key={f.mountPoint}
             icon={Icon.HardDrive}
             title={`${f.mountPoint} ${fmtDisk(f.free)} free / ${fmtDisk(f.total)}`}
-            onAction={() => open("https://glances.bjelke.org")}
+            onAction={() => open(URLS.glances)}
           />
         ))}
         {data?.temps?.server && (
@@ -45,7 +45,7 @@ export default function MenuBar() {
             ]
               .filter(Boolean)
               .join(" · ")}
-            onAction={() => open("https://home.bjelke.org")}
+            onAction={() => open(URLS.homepage)}
           />
         )}
         {data?.uptime && <MenuBarExtra.Item icon={Icon.Clock} title={`Up ${data.uptime}`} />}
@@ -55,14 +55,14 @@ export default function MenuBar() {
           <MenuBarExtra.Item
             icon={Icon.Coin}
             title={`${data.pool.name} ${fmtDisk(data.pool.free)} free / ${fmtDisk(data.pool.total)}${data.pool.healthy ? "" : " — DEGRADED"}`}
-            onAction={() => open("https://nas.bjelke.org")}
+            onAction={() => open(URLS.truenas)}
           />
         )}
         {data?.temps && data.temps.nas.disks.length > 0 && (
           <MenuBarExtra.Item
             icon={Icon.Temperature}
             title={data.temps.nas.disks.map((d) => `${d.name} ${d.temp}°`).join(" · ")}
-            onAction={() => open("https://nas.bjelke.org")}
+            onAction={() => open(URLS.truenas)}
           />
         )}
       </MenuBarExtra.Section>

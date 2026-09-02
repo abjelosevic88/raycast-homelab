@@ -1,10 +1,24 @@
 import { getPreferenceValues } from "@raycast/api";
 
 interface Preferences {
-  glancesUrl: string;
-  tempsUrl: string;
+  glancesUrl?: string;
+  tempsUrl?: string;
   truenasUrl?: string;
   truenasApiKey?: string;
+}
+
+// Canonical Caddy DNS names. Used whenever a preference is empty or still
+// points at the old raw tailnet host:port defaults from before this change.
+export const URLS = {
+  glances: "https://glances.bjelke.org",
+  temps: "https://home.bjelke.org/images/temps.json",
+  truenas: "https://nas.bjelke.org",
+  homepage: "https://home.bjelke.org",
+};
+
+function resolveUrl(pref: string | undefined, fallback: string): string {
+  if (!pref || pref.includes(".ts.net")) return fallback;
+  return pref.replace(/\/+$/, "");
 }
 
 export interface CpuStats {
@@ -120,7 +134,8 @@ interface TrueNasPool {
 
 export async function loadStats(): Promise<HomelabStats> {
   const prefs = getPreferenceValues<Preferences>();
-  const g = prefs.glancesUrl.replace(/\/+$/, "");
+  const g = resolveUrl(prefs.glancesUrl, URLS.glances);
+  const tempsUrl = resolveUrl(prefs.tempsUrl, URLS.temps);
 
   const stats: HomelabStats = { fs: [], errors: [], fetchedAt: Date.now() };
 
@@ -143,7 +158,7 @@ export async function loadStats(): Promise<HomelabStats> {
     getJson<string>(`${g}/api/4/uptime`).then((u) => {
       stats.uptime = compactUptime(u);
     }),
-    getJson<TempsJson>(prefs.tempsUrl).then((t) => {
+    getJson<TempsJson>(tempsUrl).then((t) => {
       stats.temps = {
         server: { cpu: { ...t.server.cpu, name: t.server.cpu.name ?? "CPU" }, disks: t.server.disks },
         nas: { disks: t.nas.disks },
@@ -151,8 +166,8 @@ export async function loadStats(): Promise<HomelabStats> {
     }),
   ];
 
-  if (prefs.truenasUrl && prefs.truenasApiKey) {
-    const n = prefs.truenasUrl.replace(/\/+$/, "");
+  if (prefs.truenasApiKey) {
+    const n = resolveUrl(prefs.truenasUrl, URLS.truenas);
     tasks.push(
       getJson<TrueNasPool[]>(`${n}/api/v2.0/pool`, {
         Authorization: `Bearer ${prefs.truenasApiKey}`,

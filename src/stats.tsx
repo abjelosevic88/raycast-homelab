@@ -1,6 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
-import { fmtDisk, fmtGiB, loadStats, TempReading } from "./api";
+import { fmtDisk, fmtGiB, loadStats, TempReading, URLS } from "./api";
 
 function usageColor(percent: number): Color {
   if (percent >= 90) return Color.Red;
@@ -23,17 +23,9 @@ function CommonActions(props: { onRefresh: () => void }) {
         shortcut={{ modifiers: ["cmd"], key: "r" }}
         onAction={props.onRefresh}
       />
-      <Action.OpenInBrowser title="Open Homepage" url="https://home.bjelke.org" />
-      <Action.OpenInBrowser
-        title="Open Glances"
-        url="https://glances.bjelke.org"
-        shortcut={{ modifiers: ["cmd"], key: "g" }}
-      />
-      <Action.OpenInBrowser
-        title="Open TrueNAS"
-        url="https://nas.bjelke.org"
-        shortcut={{ modifiers: ["cmd"], key: "n" }}
-      />
+      <Action.OpenInBrowser title="Open Homepage" url={URLS.homepage} />
+      <Action.OpenInBrowser title="Open Glances" url={URLS.glances} shortcut={{ modifiers: ["cmd"], key: "g" }} />
+      <Action.OpenInBrowser title="Open TrueNAS" url={URLS.truenas} shortcut={{ modifiers: ["cmd"], key: "n" }} />
     </ActionPanel>
   );
 }
