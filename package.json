@@ -31,17 +31,30 @@
     },
     {
       "name": "request",
-      "title": "Request Media",
+      "title": "Discover Media",
       "subtitle": "Homelab",
-      "description": "Search Jellyseerr and request movies & shows",
-      "mode": "view"
+      "description": "Browse trending/popular or search, and request movies & shows",
+      "mode": "view",
+      "keywords": [
+        "jellyseerr",
+        "request",
+        "movie",
+        "show",
+        "search"
+      ]
     },
     {
       "name": "requests",
-      "title": "Media Requests",
+      "title": "Request History",
       "subtitle": "Homelab",
-      "description": "View, approve, decline and retry Jellyseerr requests",
-      "mode": "view"
+      "description": "Past and pending Jellyseerr requests \u2014 approve, decline, retry, delete",
+      "mode": "view",
+      "keywords": [
+        "jellyseerr",
+        "pending",
+        "approve",
+        "decline"
+      ]
     }
   ],
   "preferences": [
