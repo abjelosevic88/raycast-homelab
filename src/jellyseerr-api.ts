@@ -55,11 +55,16 @@ async function jsFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function searchMedia(query: string): Promise<SearchResult[]> {
-  const data = await jsFetch<{ results: SearchResult[] }>(
-    `/api/v1/search?query=${encodeURIComponent(query)}&page=1`,
+export interface Page<T> {
+  results: T[];
+  hasMore: boolean;
+}
+
+export async function searchMedia(query: string, page = 1): Promise<Page<SearchResult>> {
+  const data = await jsFetch<{ results: SearchResult[]; totalPages: number; page: number }>(
+    `/api/v1/search?query=${encodeURIComponent(query)}&page=${page}`,
   );
-  return data.results.filter((r) => r.mediaType !== "person");
+  return { results: data.results.filter((r) => r.mediaType !== "person"), hasMore: data.page < data.totalPages };
 }
 
 export type DiscoverCategory = "trending" | "popular-movies" | "popular-tv" | "upcoming-movies" | "upcoming-tv";
@@ -80,12 +85,15 @@ const DISCOVER_PATHS: Record<DiscoverCategory, { path: string; type?: "movie" | 
   "upcoming-tv": { path: "/api/v1/discover/tv/upcoming", type: "tv" },
 };
 
-export async function discoverMedia(category: DiscoverCategory): Promise<SearchResult[]> {
+export async function discoverMedia(category: DiscoverCategory, page = 1): Promise<Page<SearchResult>> {
   const { path, type } = DISCOVER_PATHS[category];
-  const data = await jsFetch<{ results: SearchResult[] }>(`${path}?page=1`);
-  return data.results
-    .filter((r) => r.mediaType !== "person")
-    .map((r) => ({ ...r, mediaType: r.mediaType ?? type ?? "movie" }));
+  const data = await jsFetch<{ results: SearchResult[]; totalPages: number; page: number }>(`${path}?page=${page}`);
+  return {
+    results: data.results
+      .filter((r) => r.mediaType !== "person")
+      .map((r) => ({ ...r, mediaType: r.mediaType ?? type ?? "movie" })),
+    hasMore: data.page < data.totalPages,
+  };
 }
 
 export interface SeasonInfo {
@@ -243,9 +251,13 @@ interface RawRequest {
   seasons?: { seasonNumber: number }[];
 }
 
-export async function listRequests(filter: RequestFilter): Promise<MediaRequestItem[]> {
-  const data = await jsFetch<{ results: RawRequest[] }>(`/api/v1/request?take=40&sort=added&filter=${filter}`);
-  return Promise.all(
+const REQUEST_PAGE_SIZE = 40;
+
+export async function listRequests(filter: RequestFilter, page = 0): Promise<Page<MediaRequestItem>> {
+  const data = await jsFetch<{ results: RawRequest[]; pageInfo: { pages: number; page: number } }>(
+    `/api/v1/request?take=${REQUEST_PAGE_SIZE}&skip=${page * REQUEST_PAGE_SIZE}&sort=added&filter=${filter}`,
+  );
+  const results = await Promise.all(
     data.results.map(async (r) => {
       let title = `${r.media.mediaType} #${r.media.tmdbId}`;
       let posterPath: string | undefined;
@@ -273,6 +285,7 @@ export async function listRequests(filter: RequestFilter): Promise<MediaRequestI
       };
     }),
   );
+  return { results, hasMore: data.pageInfo.page < data.pageInfo.pages };
 }
 
 export async function actOnRequest(requestId: number, action: "approve" | "decline" | "retry"): Promise<void> {

@@ -38,8 +38,13 @@ export default function Requests() {
   const [filter, setFilter] = useState<RequestFilter>("all");
   const { url, key } = jellyseerrPrefs();
 
-  const { data, isLoading, revalidate } = useCachedPromise(
-    async (f: RequestFilter, hasKey: boolean) => (hasKey ? await listRequests(f) : []),
+  const { data, isLoading, revalidate, pagination } = useCachedPromise(
+    (f: RequestFilter, hasKey: boolean) =>
+      async ({ page }: { page: number }) => {
+        if (!hasKey) return { data: [] as MediaRequestItem[], hasMore: false };
+        const res = await listRequests(f, page);
+        return { data: res.results, hasMore: res.hasMore };
+      },
     [filter, Boolean(key)],
     { keepPreviousData: true },
   );
@@ -77,6 +82,7 @@ export default function Requests() {
   return (
     <List
       isLoading={isLoading}
+      pagination={pagination}
       searchBarPlaceholder="Filter requests…"
       searchBarAccessory={
         <List.Dropdown tooltip="Status" value={filter} onChange={(v) => setFilter(v as RequestFilter)}>

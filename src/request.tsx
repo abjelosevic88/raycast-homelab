@@ -27,11 +27,14 @@ export default function Request() {
   const { url, key } = jellyseerrPrefs();
 
   const searching = query.trim().length >= 2;
-  const { data, isLoading, revalidate } = useCachedPromise(
-    async (q: string, cat: DiscoverCategory, hasKey: boolean) => {
-      if (!hasKey) return [];
-      return q.trim().length < 2 ? await discoverMedia(cat) : await searchMedia(q.trim());
-    },
+  const { data, isLoading, revalidate, pagination } = useCachedPromise(
+    (q: string, cat: DiscoverCategory, hasKey: boolean) =>
+      async ({ page }: { page: number }) => {
+        if (!hasKey) return { data: [] as SearchResult[], hasMore: false };
+        const res =
+          q.trim().length < 2 ? await discoverMedia(cat, page + 1) : await searchMedia(q.trim(), page + 1);
+        return { data: res.results, hasMore: res.hasMore };
+      },
     [query, category, Boolean(key)],
     { keepPreviousData: true },
   );
@@ -41,6 +44,7 @@ export default function Request() {
   return (
     <Grid
       isLoading={isLoading}
+      pagination={pagination}
       searchText={query}
       onSearchTextChange={setQuery}
       throttle
@@ -65,8 +69,11 @@ export default function Request() {
       )}
       <Grid.Section title={searching ? "Search Results" : categoryTitle}>
         {data?.map((r) => {
-          const status = r.mediaInfo?.status ? STATUS[r.mediaInfo.status] : undefined;
-          const requestable = !status || r.mediaInfo?.status === 1;
+          const statusCode = r.mediaInfo?.status;
+          const status = statusCode ? STATUS[statusCode] : undefined;
+          const requestable = !status || statusCode === 1;
+          // visible ownership marker on the tile itself
+          const mark = statusCode === 5 ? "✅ " : statusCode === 4 ? "🟡 " : statusCode === 2 || statusCode === 3 ? "⏳ " : "";
           const webUrl = `${url}/${r.mediaType}/${r.id}`;
           const target = { mediaType: r.mediaType as "movie" | "tv", id: r.id, title: titleOf(r) };
           const subtitle = [yearOf(r), r.mediaType === "tv" ? "TV" : "Movie", status?.label]
@@ -80,7 +87,7 @@ export default function Request() {
                   ? { source: `https://image.tmdb.org/t/p/w342${r.posterPath}` }
                   : { source: r.mediaType === "tv" ? Icon.Monitor : Icon.FilmStrip, tintColor: Color.SecondaryText }
               }
-              title={titleOf(r)}
+              title={`${mark}${titleOf(r)}`}
               subtitle={subtitle}
               actions={
                 <ActionPanel>
