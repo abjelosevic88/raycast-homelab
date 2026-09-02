@@ -67,6 +67,20 @@
         "approve",
         "decline"
       ]
+    },
+    {
+      "name": "transaction",
+      "title": "Add Transaction",
+      "subtitle": "Homelab",
+      "description": "Firefly Pico assistant: template + amount + description, or one-tap templates",
+      "mode": "view",
+      "keywords": [
+        "firefly",
+        "pico",
+        "money",
+        "expense",
+        "spend"
+      ]
     }
   ],
   "preferences": [
@@ -148,6 +162,27 @@
       "name": "jellyseerrApiKey",
       "title": "Jellyseerr API Key",
       "description": "Jellyseerr \u2192 Settings \u2192 General \u2192 API Key",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "fireflyUrl",
+      "title": "Firefly III URL",
+      "description": "Leave empty for https://firefly.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "picoUrl",
+      "title": "Firefly Pico URL",
+      "description": "Leave empty for https://pico.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "fireflyToken",
+      "title": "Firefly III Personal Access Token",
+      "description": "Firefly III \u2192 Options \u2192 Profile \u2192 OAuth \u2192 Personal Access Tokens",
       "type": "password",
       "required": false
     }

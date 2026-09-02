@@ -8,6 +8,7 @@ import Stats from "./stats";
 import Downloads from "./downloads";
 import Request from "./request";
 import Requests from "./requests";
+import Transaction from "./transaction";
 
 const POLL_MS = 10000;
 
@@ -17,6 +18,7 @@ const COMMANDS = [
   { name: "downloads", title: "Homelab Downloads", subtitle: "Torrents & Usenet, live", icon: Icon.Download, view: () => <Downloads /> },
   { name: "request", title: "Discover Media", subtitle: "Browse & request movies and shows", icon: Icon.FilmStrip, view: () => <Request /> },
   { name: "requests", title: "Request History", subtitle: "Approve · decline · retry", icon: Icon.BulletPoints, view: () => <Requests /> },
+  { name: "transaction", title: "Add Transaction", subtitle: "Firefly Pico assistant & templates", icon: Icon.Coins, view: () => <Transaction /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [
