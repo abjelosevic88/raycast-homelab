@@ -24,8 +24,8 @@ export default function MenuBar() {
     data?.cpu !== undefined
       ? `${Math.round(data.cpu.percent)}%${cpuTemp !== undefined ? ` ${cpuTemp}°` : ""}`
       : undefined;
-  // surface download activity in the menu bar itself, only while it exists
-  const title = baseTitle !== undefined && dlSpeed > 1e5 ? `${baseTitle} ↓${fmtSpeed(dlSpeed)}` : baseTitle;
+  // just a ↓ marker while downloading — the speeds live in the dropdown
+  const title = baseTitle !== undefined && dlSpeed > 1e5 ? `${baseTitle} ↓` : baseTitle;
 
   return (
     <MenuBarExtra icon={Icon.HardDrive} title={title} isLoading={isLoading} tooltip="Homelab">
