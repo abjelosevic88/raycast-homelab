@@ -28,6 +28,13 @@
       "subtitle": "Homelab",
       "description": "qBittorrent and SABnzbd activity in one place",
       "mode": "view"
+    },
+    {
+      "name": "request",
+      "title": "Request Media",
+      "subtitle": "Homelab",
+      "description": "Search Jellyseerr and request movies & shows",
+      "mode": "view"
     }
   ],
   "preferences": [
@@ -95,6 +102,20 @@
       "name": "sabnzbdApiKey",
       "title": "SABnzbd API Key",
       "description": "Config \u2192 General \u2192 API Key",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "jellyseerrUrl",
+      "title": "Jellyseerr URL",
+      "description": "Leave empty for https://requests.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "jellyseerrApiKey",
+      "title": "Jellyseerr API Key",
+      "description": "Jellyseerr \u2192 Settings \u2192 General \u2192 API Key",
       "type": "password",
       "required": false
     }
