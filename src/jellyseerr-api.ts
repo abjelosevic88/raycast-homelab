@@ -62,6 +62,11 @@ export async function searchMedia(query: string): Promise<SearchResult[]> {
   return data.results.filter((r) => r.mediaType !== "person");
 }
 
+export async function trendingMedia(): Promise<SearchResult[]> {
+  const data = await jsFetch<{ results: SearchResult[] }>("/api/v1/discover/trending?page=1");
+  return data.results.filter((r) => r.mediaType !== "person");
+}
+
 export interface ServiceProfiles {
   serverId: number;
   activeProfileId: number;

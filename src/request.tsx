@@ -1,7 +1,16 @@
 import { Action, ActionPanel, Color, Grid, Icon, showToast, Toast } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
-import { getProfiles, jellyseerrPrefs, requestMedia, searchMedia, SearchResult, ServiceProfiles, STATUS } from "./jellyseerr-api";
+import {
+  getProfiles,
+  jellyseerrPrefs,
+  requestMedia,
+  searchMedia,
+  SearchResult,
+  ServiceProfiles,
+  STATUS,
+  trendingMedia,
+} from "./jellyseerr-api";
 
 function ProfileSubmenu(props: { result: SearchResult; onPick: (profileId: number) => void }) {
   const [profiles, setProfiles] = useState<ServiceProfiles | null>(null);
@@ -43,9 +52,13 @@ export default function Request() {
   const [query, setQuery] = useState("");
   const { url, key } = jellyseerrPrefs();
 
+  const searching = query.trim().length >= 2;
   const { data, isLoading, revalidate } = useCachedPromise(
-    async (q: string) => (q.trim().length < 2 ? [] : await searchMedia(q.trim())),
-    [query],
+    async (q: string, hasKey: boolean) => {
+      if (!hasKey) return [];
+      return q.trim().length < 2 ? await trendingMedia() : await searchMedia(q.trim());
+    },
+    [query, Boolean(key)],
     { keepPreviousData: true },
   );
 
@@ -82,9 +95,7 @@ export default function Request() {
           description="⌘K → Configure Extension → paste the API key from Jellyseerr → Settings → General"
         />
       )}
-      {key && query.trim().length < 2 && (
-        <Grid.EmptyView icon={Icon.MagnifyingGlass} title="Type to search" description="Movies and TV shows" />
-      )}
+      <Grid.Section title={searching ? "Search Results" : "Trending"}>
       {data?.map((r) => {
         const status = r.mediaInfo?.status ? STATUS[r.mediaInfo.status] : undefined;
         const requestable = !status || r.mediaInfo?.status === 1;
@@ -127,6 +138,7 @@ export default function Request() {
           />
         );
       })}
+      </Grid.Section>
     </Grid>
   );
 }
