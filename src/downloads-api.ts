@@ -197,7 +197,7 @@ export interface DownloadsData {
   fetchedAt: number;
 }
 
-const SEED_LIMIT = 5;
+const SEED_LIMIT = 15;
 
 export async function loadDownloads(): Promise<DownloadsData> {
   const data: DownloadsData = { errors: [], fetchedAt: Date.now() };
@@ -230,7 +230,6 @@ export async function loadDownloads(): Promise<DownloadsData> {
             paused: t.state.includes("paused") || t.state.includes("stopped"),
           })),
           seeding: seeding
-            .filter((t) => t.upspeed > 0)
             .sort((a, b) => b.upspeed - a.upspeed)
             .slice(0, SEED_LIMIT)
             .map((t) => ({ id: t.hash, name: t.name, upSpeed: t.upspeed, ratio: t.ratio })),

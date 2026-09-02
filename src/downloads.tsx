@@ -96,13 +96,25 @@ export default function Downloads() {
         {data?.qbit?.seeding.map((s) => (
           <List.Item
             key={s.id}
-            icon={{ source: Icon.ArrowUpCircle, tintColor: Color.Green }}
+            icon={{ source: Icon.ArrowUpCircle, tintColor: s.upSpeed > 0 ? Color.Green : Color.SecondaryText }}
             title={s.name}
             subtitle="seeding"
-            accessories={[{ text: `↑ ${fmtSpeed(s.upSpeed)}` }, { tag: `ratio ${s.ratio.toFixed(1)}` }]}
+            accessories={[
+              s.upSpeed > 0
+                ? { text: `↑ ${fmtSpeed(s.upSpeed)}` }
+                : { tag: { value: "idle", color: Color.SecondaryText }, tooltip: "seeding, but no one is downloading right now" },
+              { tag: `ratio ${s.ratio.toFixed(1)}` },
+            ]}
             actions={commonPanel}
           />
         ))}
+        {data?.qbit && data.qbit.seedCount > data.qbit.seeding.length && (
+          <List.Item
+            icon={Icon.Ellipsis}
+            title={`…and ${data.qbit.seedCount - data.qbit.seeding.length} more idle seeds`}
+            actions={commonPanel}
+          />
+        )}
       </List.Section>
 
       <List.Section title="Usenet — SABnzbd">
