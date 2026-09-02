@@ -12,6 +12,7 @@ import Transaction from "./transaction";
 import Monitors from "./monitors";
 import Music from "./music";
 import Notifications from "./notifications";
+import Photos from "./photos";
 import { loadKuma } from "./kuma-api";
 
 const POLL_MS = 10000;
@@ -26,6 +27,7 @@ const COMMANDS = [
   { name: "monitors", title: "Homelab Monitors", subtitle: "Uptime Kuma — what's down", icon: Icon.Heartbeat, view: () => <Monitors /> },
   { name: "music", title: "Music Library", subtitle: "Navidrome albums with cover art", icon: Icon.Music, view: () => <Music /> },
   { name: "notifications", title: "Notifications", subtitle: "ntfy alerts & downloads, last 7 days", icon: Icon.Bell, view: () => <Notifications /> },
+  { name: "photos", title: "Photos", subtitle: "Immich browse & smart search", icon: Icon.Image, view: () => <Photos /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [

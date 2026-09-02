@@ -119,6 +119,19 @@
         "alerts",
         "notifications"
       ]
+    },
+    {
+      "name": "photos",
+      "title": "Photos",
+      "subtitle": "Homelab",
+      "description": "Browse and smart-search the Immich library",
+      "mode": "view",
+      "keywords": [
+        "immich",
+        "photos",
+        "pictures",
+        "gallery"
+      ]
     }
   ],
   "preferences": [
@@ -281,6 +294,20 @@
       "type": "textfield",
       "required": false,
       "default": "alerts,downloads"
+    },
+    {
+      "name": "immichUrl",
+      "title": "Immich URL",
+      "description": "Leave empty for https://immich.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "immichApiKey",
+      "title": "Immich API Key",
+      "description": "Account Settings \u2192 API Keys",
+      "type": "password",
+      "required": false
     }
   ],
   "dependencies": {
