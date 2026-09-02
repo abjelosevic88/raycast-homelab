@@ -23,7 +23,7 @@ function base(pref: string | undefined, fallback: string): string {
 export function fmtSpeed(bps: number): string {
   if (bps >= 1e6) return `${(bps / 1e6).toFixed(1)} MB/s`;
   if (bps >= 1e3) return `${Math.round(bps / 1e3)} KB/s`;
-  return bps > 0 ? `${bps} B/s` : "0";
+  return bps > 0 ? `${bps} B/s` : "0 B/s";
 }
 
 export function fmtSize(bytes: number): string {
@@ -39,6 +39,13 @@ export function fmtEta(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`;
   const s = seconds % 60;
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+export function timeAgo(unixSeconds: number): string {
+  const s = Math.max(0, Math.floor(Date.now() / 1000 - unixSeconds));
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
 }
 
 // ---------- qBittorrent (cookie auth, v5 API) ----------
@@ -111,6 +118,7 @@ interface QbitTorrent {
   size: number;
   dlspeed: number;
   upspeed: number;
+  ratio: number;
   eta: number;
   state: string;
   completion_on: number;
@@ -145,6 +153,7 @@ interface SabQueue {
   queue: {
     paused: boolean;
     kbpersec: string;
+    timeleft: string;
     slots: {
       nzo_id: string;
       filename: string;
@@ -158,7 +167,7 @@ interface SabQueue {
 }
 interface SabHistory {
   history: {
-    slots: { nzo_id: string; name: string; status: string; size: string; fail_message: string }[];
+    slots: { nzo_id: string; name: string; status: string; size: string; fail_message: string; completed: number }[];
   };
 }
 
@@ -168,11 +177,18 @@ export interface DownloadItem {
   id: string;
   name: string;
   progress: number; // 0..1
-  detail: string; // "4.2 GB left of 8.6 GB" etc.
+  detail: string;
   speed?: string;
   eta?: string;
   state: string;
   paused: boolean;
+}
+
+export interface SeedItem {
+  id: string;
+  name: string;
+  upSpeed: number;
+  ratio: number;
 }
 
 export interface RecentItem {
@@ -180,14 +196,32 @@ export interface RecentItem {
   name: string;
   ok: boolean;
   detail: string;
+  when?: number; // unix seconds
 }
 
 export interface DownloadsData {
-  qbit?: { items: DownloadItem[]; dlSpeed: number; upSpeed: number; recent: RecentItem[] };
-  sab?: { items: DownloadItem[]; speedBps: number; paused: boolean; recent: RecentItem[] };
+  qbit?: {
+    dlSpeed: number;
+    upSpeed: number;
+    downloading: DownloadItem[];
+    seeding: SeedItem[];
+    seedCount: number;
+    recent: RecentItem[];
+  };
+  qbitHint?: string;
+  sab?: {
+    speedBps: number;
+    paused: boolean;
+    timeLeft: string;
+    items: DownloadItem[];
+    recent: RecentItem[];
+  };
   errors: string[];
   fetchedAt: number;
 }
+
+const RECENT_LIMIT = 3;
+const SEED_LIMIT = 5;
 
 export async function loadDownloads(): Promise<DownloadsData> {
   const data: DownloadsData = { errors: [], fetchedAt: Date.now() };
@@ -198,62 +232,75 @@ export async function loadDownloads(): Promise<DownloadsData> {
   // Never attempt a login without a password: qBittorrent bans the source IP
   // after 5 failed attempts, and behind Caddy that bans the whole vhost.
   if (!prefs.qbitPassword) {
-    data.errors.push("qBittorrent password not set — add it in the extension preferences (⌘K → Configure Extension)");
+    data.qbitHint = "qBittorrent password not set — press ⌘K → Configure Extension";
   } else {
     tasks.push(
       Promise.all([
-      qbitGet<QbitTorrent[]>("/api/v2/torrents/info?filter=downloading"),
-      qbitGet<QbitTransfer>("/api/v2/transfer/info"),
-      qbitGet<QbitTorrent[]>("/api/v2/torrents/info?filter=completed&sort=completion_on&reverse=true&limit=5"),
-    ]).then(([torrents, transfer, completed]) => {
-      data.qbit = {
-        dlSpeed: transfer.dl_info_speed,
-        upSpeed: transfer.up_info_speed,
-        items: torrents.map((t) => ({
-          id: t.hash,
-          name: t.name,
-          progress: t.progress,
-          detail: `${fmtSize(t.size * (1 - t.progress))} left of ${fmtSize(t.size)}`,
-          speed: t.dlspeed > 0 ? fmtSpeed(t.dlspeed) : undefined,
-          eta: fmtEta(t.eta),
-          state: t.state,
-          paused: t.state.includes("paused") || t.state.includes("stopped"),
-        })),
-        recent: completed.map((t) => ({
-          id: t.hash,
-          name: t.name,
-          ok: true,
-          detail: fmtSize(t.size),
-        })),
-      };
+        qbitGet<QbitTorrent[]>("/api/v2/torrents/info?filter=downloading"),
+        qbitGet<QbitTorrent[]>("/api/v2/torrents/info?filter=seeding"),
+        qbitGet<QbitTransfer>("/api/v2/transfer/info"),
+        qbitGet<QbitTorrent[]>(
+          `/api/v2/torrents/info?filter=completed&sort=completion_on&reverse=true&limit=${RECENT_LIMIT}`,
+        ),
+      ]).then(([downloading, seeding, transfer, completed]) => {
+        data.qbit = {
+          dlSpeed: transfer.dl_info_speed,
+          upSpeed: transfer.up_info_speed,
+          downloading: downloading.map((t) => ({
+            id: t.hash,
+            name: t.name,
+            progress: t.progress,
+            detail: `${fmtSize(t.size * (1 - t.progress))} left of ${fmtSize(t.size)}`,
+            speed: t.dlspeed > 0 ? fmtSpeed(t.dlspeed) : undefined,
+            eta: fmtEta(t.eta),
+            state: t.state,
+            paused: t.state.includes("paused") || t.state.includes("stopped"),
+          })),
+          seeding: seeding
+            .filter((t) => t.upspeed > 0)
+            .sort((a, b) => b.upspeed - a.upspeed)
+            .slice(0, SEED_LIMIT)
+            .map((t) => ({ id: t.hash, name: t.name, upSpeed: t.upspeed, ratio: t.ratio })),
+          seedCount: seeding.length,
+          recent: completed.map((t) => ({
+            id: t.hash,
+            name: t.name,
+            ok: true,
+            detail: fmtSize(t.size),
+            when: t.completion_on,
+          })),
+        };
       }),
     );
   }
 
   tasks.push(
-    Promise.all([sabGet<SabQueue>({ mode: "queue" }), sabGet<SabHistory>({ mode: "history", start: "0", limit: "5" })]).then(
-      ([q, h]) => {
-        data.sab = {
-          speedBps: parseFloat(q.queue.kbpersec) * 1000,
-          paused: q.queue.paused,
-          items: q.queue.slots.map((s) => ({
-            id: s.nzo_id,
-            name: s.filename,
-            progress: parseFloat(s.percentage) / 100,
-            detail: `${s.sizeleft} left of ${s.size}`,
-            eta: s.timeleft,
-            state: s.status.toLowerCase(),
-            paused: s.status === "Paused",
-          })),
-          recent: h.history.slots.map((s) => ({
-            id: s.nzo_id,
-            name: s.name,
-            ok: s.status === "Completed",
-            detail: s.status === "Completed" ? s.size : s.fail_message || s.status,
-          })),
-        };
-      },
-    ),
+    Promise.all([
+      sabGet<SabQueue>({ mode: "queue" }),
+      sabGet<SabHistory>({ mode: "history", start: "0", limit: String(RECENT_LIMIT) }),
+    ]).then(([q, h]) => {
+      data.sab = {
+        speedBps: parseFloat(q.queue.kbpersec) * 1000,
+        paused: q.queue.paused,
+        timeLeft: q.queue.timeleft,
+        items: q.queue.slots.map((s) => ({
+          id: s.nzo_id,
+          name: s.filename,
+          progress: parseFloat(s.percentage) / 100,
+          detail: `${s.sizeleft} left of ${s.size}`,
+          eta: s.timeleft,
+          state: s.status.toLowerCase(),
+          paused: s.status === "Paused",
+        })),
+        recent: h.history.slots.map((s) => ({
+          id: s.nzo_id,
+          name: s.name,
+          ok: s.status === "Completed",
+          detail: s.status === "Completed" ? s.size : s.fail_message || s.status,
+          when: s.completed,
+        })),
+      };
+    }),
   );
 
   for (const r of await Promise.allSettled(tasks)) {

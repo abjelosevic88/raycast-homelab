@@ -1,6 +1,18 @@
 import { Action, ActionPanel, Color, Icon, List, showToast, Toast } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
-import { DL_URLS, DownloadItem, fmtSpeed, loadDownloads, qbitToggle, RecentItem, sabToggle } from "./downloads-api";
+import { useEffect } from "react";
+import {
+  DL_URLS,
+  DownloadItem,
+  fmtSpeed,
+  loadDownloads,
+  qbitToggle,
+  RecentItem,
+  sabToggle,
+  timeAgo,
+} from "./downloads-api";
+
+const POLL_MS = 5000;
 
 function stateColor(item: DownloadItem): Color {
   if (item.paused) return Color.SecondaryText;
@@ -10,6 +22,12 @@ function stateColor(item: DownloadItem): Color {
 
 export default function Downloads() {
   const { data, isLoading, revalidate } = useCachedPromise(loadDownloads, [], { keepPreviousData: true });
+
+  // live view: poll while the window is open
+  useEffect(() => {
+    const t = setInterval(revalidate, POLL_MS);
+    return () => clearInterval(t);
+  }, [revalidate]);
 
   async function toggle(source: "qbit" | "sab", item: DownloadItem) {
     const action = source === "qbit" ? (item.paused ? "start" : "stop") : item.paused ? "resume" : "pause";
@@ -35,6 +53,7 @@ export default function Downloads() {
       <Action.OpenInBrowser title="Open Sabnzbd" url={DL_URLS.sab} shortcut={{ modifiers: ["cmd"], key: "s" }} />
     </>
   );
+  const commonPanel = <ActionPanel>{common}</ActionPanel>;
 
   function activeItem(source: "qbit" | "sab", item: DownloadItem) {
     return (
@@ -42,10 +61,11 @@ export default function Downloads() {
         key={item.id}
         icon={getProgressIcon(item.progress, stateColor(item))}
         title={item.name}
+        subtitle={item.detail}
         accessories={[
           ...(item.speed ? [{ text: item.speed }] : []),
-          ...(item.eta && !item.paused ? [{ text: item.eta, tooltip: "ETA" }] : []),
-          { tag: { value: item.paused ? "paused" : item.state, color: stateColor(item) }, tooltip: item.detail },
+          ...(item.eta && !item.paused ? [{ text: item.eta, tooltip: "time left" }] : []),
+          { tag: { value: item.paused ? "paused" : item.state, color: stateColor(item) } },
         ]}
         actions={
           <ActionPanel>
@@ -65,35 +85,70 @@ export default function Downloads() {
     return (
       <List.Item
         key={r.id}
-        icon={r.ok ? { source: Icon.CheckCircle, tintColor: Color.Green } : { source: Icon.XMarkCircle, tintColor: Color.Red }}
+        icon={
+          r.ok
+            ? { source: Icon.CheckCircle, tintColor: Color.Green }
+            : { source: Icon.XMarkCircle, tintColor: Color.Red }
+        }
         title={r.name}
+        subtitle={r.when ? `finished ${timeAgo(r.when)}` : undefined}
         accessories={[{ text: r.detail }]}
-        actions={<ActionPanel>{common}</ActionPanel>}
+        actions={commonPanel}
       />
     );
   }
 
-  const qbitTitle = data?.qbit
-    ? `qBittorrent — ↓ ${fmtSpeed(data.qbit.dlSpeed)} · ↑ ${fmtSpeed(data.qbit.upSpeed)}`
-    : "qBittorrent";
-  const sabTitle = data?.sab
-    ? `SABnzbd — ${data.sab.paused ? "PAUSED" : `↓ ${fmtSpeed(data.sab.speedBps)}`}`
-    : "SABnzbd";
-
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Filter downloads…">
-      <List.Section title={qbitTitle} subtitle={data?.qbit ? `${data.qbit.items.length} active` : undefined}>
-        {data?.qbit?.items.map((i) => activeItem("qbit", i))}
-      </List.Section>
-      <List.Section title={sabTitle} subtitle={data?.sab ? `${data.sab.items.length} queued` : undefined}>
-        {data?.sab?.items.map((i) => activeItem("sab", i))}
-      </List.Section>
-      <List.Section title="Recently Finished — qBittorrent">
+      <List.Section title="Torrents — qBittorrent">
+        {data?.qbitHint && (
+          <List.Item
+            icon={{ source: Icon.Key, tintColor: Color.Orange }}
+            title={data.qbitHint}
+            actions={commonPanel}
+          />
+        )}
+        {data?.qbit && (
+          <List.Item
+            icon={{ source: Icon.LineChart, tintColor: Color.Blue }}
+            title={`↓ ${fmtSpeed(data.qbit.dlSpeed)}   ↑ ${fmtSpeed(data.qbit.upSpeed)}`}
+            subtitle={`${data.qbit.downloading.length} downloading · ${data.qbit.seedCount} seeding`}
+            accessories={[{ tag: { value: "live", color: Color.Green }, tooltip: "refreshes every 5s" }]}
+            actions={commonPanel}
+          />
+        )}
+        {data?.qbit?.downloading.map((i) => activeItem("qbit", i))}
+        {data?.qbit?.seeding.map((s) => (
+          <List.Item
+            key={s.id}
+            icon={{ source: Icon.ArrowUpCircle, tintColor: Color.Green }}
+            title={s.name}
+            subtitle="seeding"
+            accessories={[{ text: `↑ ${fmtSpeed(s.upSpeed)}` }, { tag: `ratio ${s.ratio.toFixed(1)}` }]}
+            actions={commonPanel}
+          />
+        ))}
         {data?.qbit?.recent.map(recentItem)}
       </List.Section>
-      <List.Section title="Recently Finished — SABnzbd">
+
+      <List.Section title="Usenet — SABnzbd">
+        {data?.sab && (
+          <List.Item
+            icon={{ source: Icon.LineChart, tintColor: Color.Purple }}
+            title={data.sab.paused ? "PAUSED" : `↓ ${fmtSpeed(data.sab.speedBps)}`}
+            subtitle={
+              data.sab.items.length > 0
+                ? `${data.sab.items.length} queued · ${data.sab.timeLeft} left`
+                : "queue empty"
+            }
+            accessories={[{ tag: { value: "live", color: Color.Green }, tooltip: "refreshes every 5s" }]}
+            actions={commonPanel}
+          />
+        )}
+        {data?.sab?.items.map((i) => activeItem("sab", i))}
         {data?.sab?.recent.map(recentItem)}
       </List.Section>
+
       {data && data.errors.length > 0 && (
         <List.Section title="Errors">
           {data.errors.map((e, i) => (
@@ -101,7 +156,7 @@ export default function Downloads() {
               key={i}
               icon={{ source: Icon.Warning, tintColor: Color.Red }}
               title={e}
-              actions={<ActionPanel>{common}</ActionPanel>}
+              actions={commonPanel}
             />
           ))}
         </List.Section>
