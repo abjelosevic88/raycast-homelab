@@ -62,11 +62,38 @@ export async function searchMedia(query: string): Promise<SearchResult[]> {
   return data.results.filter((r) => r.mediaType !== "person");
 }
 
-export async function requestMedia(result: SearchResult): Promise<void> {
-  const body: { mediaType: string; mediaId: number; seasons?: number[] } = {
+export interface ServiceProfiles {
+  serverId: number;
+  activeProfileId: number;
+  profiles: { id: number; name: string }[];
+}
+
+const profileCache: Partial<Record<"movie" | "tv", { data: ServiceProfiles; at: number }>> = {};
+
+export async function getProfiles(mediaType: "movie" | "tv"): Promise<ServiceProfiles> {
+  const cached = profileCache[mediaType];
+  if (cached && Date.now() - cached.at < 5 * 60 * 1000) return cached.data;
+  const svc = mediaType === "movie" ? "radarr" : "sonarr";
+  const servers = await jsFetch<{ id: number; isDefault: boolean; activeProfileId: number }[]>(
+    `/api/v1/service/${svc}`,
+  );
+  const server = servers.find((s) => s.isDefault) ?? servers[0];
+  if (!server) throw new Error(`No ${svc} server configured in Jellyseerr`);
+  const detail = await jsFetch<{ profiles: { id: number; name: string }[] }>(`/api/v1/service/${svc}/${server.id}`);
+  const data = { serverId: server.id, activeProfileId: server.activeProfileId, profiles: detail.profiles };
+  profileCache[mediaType] = { data, at: Date.now() };
+  return data;
+}
+
+export async function requestMedia(result: SearchResult, profileId?: number): Promise<void> {
+  const body: { mediaType: string; mediaId: number; seasons?: number[]; profileId?: number; serverId?: number } = {
     mediaType: result.mediaType,
     mediaId: result.id,
   };
+  if (profileId !== undefined) {
+    body.profileId = profileId;
+    body.serverId = (await getProfiles(result.mediaType as "movie" | "tv")).serverId;
+  }
   if (result.mediaType === "tv") {
     // request every real season; Jellyseerr wants explicit season numbers
     const tv = await jsFetch<{ seasons: { seasonNumber: number }[] }>(`/api/v1/tv/${result.id}`);

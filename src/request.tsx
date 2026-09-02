@@ -1,7 +1,35 @@
 import { Action, ActionPanel, Color, Icon, List, showToast, Toast } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
-import { jellyseerrPrefs, requestMedia, searchMedia, SearchResult, STATUS } from "./jellyseerr-api";
+import { getProfiles, jellyseerrPrefs, requestMedia, searchMedia, SearchResult, ServiceProfiles, STATUS } from "./jellyseerr-api";
+
+function ProfileSubmenu(props: { result: SearchResult; onPick: (profileId: number) => void }) {
+  const [profiles, setProfiles] = useState<ServiceProfiles | null>(null);
+  return (
+    <ActionPanel.Submenu
+      title="Request with Profile…"
+      icon={Icon.Gear}
+      shortcut={{ modifiers: ["cmd"], key: "p" }}
+      isLoading={profiles === null}
+      onOpen={() => {
+        getProfiles(props.result.mediaType as "movie" | "tv")
+          .then(setProfiles)
+          .catch(async (e) => {
+            await showToast({ style: Toast.Style.Failure, title: "Couldn't load profiles", message: String(e) });
+          });
+      }}
+    >
+      {profiles?.profiles.map((p) => (
+        <Action
+          key={p.id}
+          title={p.id === profiles.activeProfileId ? `${p.name} (default)` : p.name}
+          icon={p.id === profiles.activeProfileId ? Icon.Star : Icon.Circle}
+          onAction={() => props.onPick(p.id)}
+        />
+      ))}
+    </ActionPanel.Submenu>
+  );
+}
 
 const TAG_COLORS = { green: Color.Green, orange: Color.Orange, blue: Color.Blue, yellow: Color.Yellow } as const;
 
@@ -23,10 +51,10 @@ export default function Request() {
     { keepPreviousData: true },
   );
 
-  async function request(r: SearchResult) {
+  async function request(r: SearchResult, profileId?: number) {
     const toast = await showToast({ style: Toast.Style.Animated, title: `Requesting ${titleOf(r)}…` });
     try {
-      await requestMedia(r);
+      await requestMedia(r, profileId);
       toast.style = Toast.Style.Success;
       toast.title = `Requested ${titleOf(r)}`;
       toast.message = r.mediaType === "tv" ? "all seasons" : undefined;
@@ -79,11 +107,14 @@ export default function Request() {
             actions={
               <ActionPanel>
                 {requestable ? (
-                  <Action
-                    title={r.mediaType === "tv" ? "Request All Seasons" : "Request"}
-                    icon={Icon.Download}
-                    onAction={() => request(r)}
-                  />
+                  <>
+                    <Action
+                      title={r.mediaType === "tv" ? "Request All Seasons" : "Request"}
+                      icon={Icon.Download}
+                      onAction={() => request(r)}
+                    />
+                    <ProfileSubmenu result={r} onPick={(profileId) => request(r, profileId)} />
+                  </>
                 ) : (
                   <Action.OpenInBrowser title={`Open in Jellyseerr (${status?.label})`} url={webUrl} />
                 )}
