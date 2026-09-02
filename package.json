@@ -30,7 +30,7 @@
       "description": "Base URL of the Glances v4 API on the server",
       "type": "textfield",
       "required": true,
-      "default": "http://abjelosevic-home-server.tail0c02cf.ts.net:61208"
+      "default": "https://glances.bjelke.org"
     },
     {
       "name": "tempsUrl",
@@ -38,7 +38,7 @@
       "description": "URL of the temps.json published by temps-publish.timer",
       "type": "textfield",
       "required": true,
-      "default": "http://abjelosevic-home-server.tail0c02cf.ts.net:8090/images/temps.json"
+      "default": "https://home.bjelke.org/images/temps.json"
     },
     {
       "name": "truenasUrl",

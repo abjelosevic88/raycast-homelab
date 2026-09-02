@@ -12,8 +12,8 @@ Two commands:
 
 | Data | Source |
 |---|---|
-| CPU / RAM / disks / uptime | Glances v4 API — `abjelosevic-home-server.tail0c02cf.ts.net:61208` |
-| Temperatures (server + NAS drives) | `temps.json` published by `temps-publish.timer`, served by Homepage `:8090/images/temps.json` |
+| CPU / RAM / disks / uptime | Glances v4 API via `https://glances.bjelke.org` (Caddy) |
+| Temperatures (server + NAS drives) | `temps.json` published by `temps-publish.timer`, via `https://home.bjelke.org/images/temps.json` (Caddy → Homepage) |
 | NAS pool free/total + health | TrueNAS API `/api/v2.0/pool` via `https://nas.bjelke.org` (Bearer key) |
 
 No server-side changes were needed; everything reuses what Homepage already polls.
