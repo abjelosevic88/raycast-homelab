@@ -10,6 +10,7 @@ import Request from "./request";
 import Requests from "./requests";
 import Transaction from "./transaction";
 import Monitors from "./monitors";
+import Music from "./music";
 import { loadKuma } from "./kuma-api";
 
 const POLL_MS = 10000;
@@ -22,6 +23,7 @@ const COMMANDS = [
   { name: "requests", title: "Request History", subtitle: "Approve · decline · retry", icon: Icon.BulletPoints, view: () => <Requests /> },
   { name: "transaction", title: "Add Transaction", subtitle: "Firefly Pico assistant & templates", icon: Icon.Coins, view: () => <Transaction /> },
   { name: "monitors", title: "Homelab Monitors", subtitle: "Uptime Kuma — what's down", icon: Icon.Heartbeat, view: () => <Monitors /> },
+  { name: "music", title: "Music Library", subtitle: "Navidrome albums with cover art", icon: Icon.Music, view: () => <Music /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [

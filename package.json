@@ -94,6 +94,19 @@
         "down",
         "status"
       ]
+    },
+    {
+      "name": "music",
+      "title": "Music Library",
+      "subtitle": "Homelab",
+      "description": "Browse and search the Navidrome library with cover art",
+      "mode": "view",
+      "keywords": [
+        "navidrome",
+        "music",
+        "album",
+        "artist"
+      ]
     }
   ],
   "preferences": [
@@ -218,6 +231,27 @@
       "name": "kumaApiKey",
       "title": "Kuma API Key",
       "description": "Optional \u2014 Settings \u2192 API Keys; enables ALL monitors via /metrics",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "navidromeUrl",
+      "title": "Navidrome URL",
+      "description": "Leave empty for https://music.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "navidromeUser",
+      "title": "Navidrome Username",
+      "description": "Your Navidrome login",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "navidromePassword",
+      "title": "Navidrome Password",
+      "description": "Used for Subsonic token auth (md5, never sent raw)",
       "type": "password",
       "required": false
     }
