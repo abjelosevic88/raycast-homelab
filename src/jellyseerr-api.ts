@@ -128,6 +128,19 @@ interface RawDetails {
   mediaInfo?: { status: number };
 }
 
+const detailsCache = new Map<string, Promise<MediaDetails>>();
+
+export function getDetailsCached(mediaType: "movie" | "tv", id: number): Promise<MediaDetails> {
+  const k = `${mediaType}:${id}`;
+  let p = detailsCache.get(k);
+  if (!p) {
+    p = getDetails(mediaType, id);
+    p.catch(() => detailsCache.delete(k));
+    detailsCache.set(k, p);
+  }
+  return p;
+}
+
 export async function getDetails(mediaType: "movie" | "tv", id: number): Promise<MediaDetails> {
   const d = await jsFetch<RawDetails>(`/api/v1/${mediaType}/${id}`);
   return {
@@ -193,4 +206,85 @@ export async function requestMedia(
     }
   }
   await jsFetch("/api/v1/request", { method: "POST", body: JSON.stringify(body) });
+}
+
+// ---------- request management ----------
+
+export const REQUEST_STATUS: Record<number, { label: string; color: "green" | "orange" | "blue" | "red" }> = {
+  1: { label: "pending", color: "orange" },
+  2: { label: "approved", color: "blue" },
+  3: { label: "declined", color: "red" },
+  4: { label: "failed", color: "red" },
+  5: { label: "completed", color: "green" },
+};
+
+export type RequestFilter = "all" | "pending" | "approved" | "processing" | "available" | "failed";
+
+export interface MediaRequestItem {
+  id: number;
+  status: number;
+  mediaType: "movie" | "tv";
+  tmdbId: number;
+  mediaStatus?: number;
+  seasons: number[];
+  requestedBy: string;
+  createdAt: string;
+  title: string;
+  posterPath?: string;
+  year?: string;
+}
+
+interface RawRequest {
+  id: number;
+  status: number;
+  createdAt: string;
+  media: { mediaType: "movie" | "tv"; tmdbId: number; status?: number };
+  requestedBy?: { displayName?: string };
+  seasons?: { seasonNumber: number }[];
+}
+
+export async function listRequests(filter: RequestFilter): Promise<MediaRequestItem[]> {
+  const data = await jsFetch<{ results: RawRequest[] }>(`/api/v1/request?take=40&sort=added&filter=${filter}`);
+  return Promise.all(
+    data.results.map(async (r) => {
+      let title = `${r.media.mediaType} #${r.media.tmdbId}`;
+      let posterPath: string | undefined;
+      let year: string | undefined;
+      try {
+        const d = await getDetailsCached(r.media.mediaType, r.media.tmdbId);
+        title = d.title;
+        posterPath = d.posterPath;
+        year = d.year;
+      } catch {
+        // keep the tmdb-id fallback title
+      }
+      return {
+        id: r.id,
+        status: r.status,
+        mediaType: r.media.mediaType,
+        tmdbId: r.media.tmdbId,
+        mediaStatus: r.media.status,
+        seasons: (r.seasons ?? []).map((s) => s.seasonNumber),
+        requestedBy: r.requestedBy?.displayName ?? "unknown",
+        createdAt: r.createdAt?.slice(0, 10) ?? "",
+        title,
+        posterPath,
+        year,
+      };
+    }),
+  );
+}
+
+export async function actOnRequest(requestId: number, action: "approve" | "decline" | "retry"): Promise<void> {
+  await jsFetch(`/api/v1/request/${requestId}/${action}`, { method: "POST" });
+}
+
+export async function deleteRequest(requestId: number): Promise<void> {
+  const { url, key } = jellyseerrPrefs();
+  const res = await fetch(`${url}/api/v1/request/${requestId}`, {
+    method: "DELETE",
+    headers: { "X-Api-Key": key },
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }

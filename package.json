@@ -35,6 +35,13 @@
       "subtitle": "Homelab",
       "description": "Search Jellyseerr and request movies & shows",
       "mode": "view"
+    },
+    {
+      "name": "requests",
+      "title": "Media Requests",
+      "subtitle": "Homelab",
+      "description": "View, approve, decline and retry Jellyseerr requests",
+      "mode": "view"
     }
   ],
   "preferences": [
