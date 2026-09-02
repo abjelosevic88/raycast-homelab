@@ -87,7 +87,7 @@ interface RawPicoTemplate {
 
 export async function loadAssistantData(): Promise<AssistantData> {
   const [tpl, tags, cats, accts] = await Promise.all([
-    apiFetch<{ data: RawPicoTemplate[] }>("pico", "/api/transaction-templates"),
+    apiFetch<{ data: RawPicoTemplate[] }>("pico", "/api/transaction-templates?limit=200"),
     apiFetch<{ data: { id: string; attributes: { tag: string } }[] }>("core", "/api/v1/tags?limit=200"),
     apiFetch<{ data: { id: string; attributes: { name: string } }[] }>("core", "/api/v1/categories?limit=200"),
     apiFetch<{ data: { id: string; attributes: { name: string; currency_code: string } }[] }>(
