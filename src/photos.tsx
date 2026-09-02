@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Grid, Icon, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, Grid, Icon, showToast, Toast } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import {
@@ -17,6 +17,36 @@ import {
   smartSearch,
   thumbUrl,
 } from "./immich-api";
+
+function PhotoPreview(props: { photo: Photo }) {
+  const p = props.photo;
+  return (
+    <Detail
+      navigationTitle={p.originalFileName}
+      markdown={`![${p.originalFileName}](${thumbUrl(p.id, "preview")})${
+        p.type === "VIDEO" ? "\n\n*Video — press Enter to play it in Immich*" : ""
+      }`}
+      metadata={
+        <Detail.Metadata>
+          <Detail.Metadata.Label title="File" text={p.originalFileName} />
+          <Detail.Metadata.Label title="Taken" text={p.fileCreatedAt?.slice(0, 19).replace("T", " ") ?? "—"} />
+          <Detail.Metadata.Label title="Type" text={p.type === "VIDEO" ? "Video" : "Photo"} />
+          {p.isFavorite && (
+            <Detail.Metadata.TagList title="Favorite">
+              <Detail.Metadata.TagList.Item text="♥" color={Color.Red} />
+            </Detail.Metadata.TagList>
+          )}
+        </Detail.Metadata>
+      }
+      actions={
+        <ActionPanel>
+          <Action.OpenInBrowser title="Open in Immich" url={photoWebUrl(p.id)} />
+          <Action.CopyToClipboard title="Copy File Name" content={p.originalFileName} />
+        </ActionPanel>
+      }
+    />
+  );
+}
 
 function PhotoItem(props: { photo: Photo; onChanged?: () => void }) {
   const p = props.photo;
@@ -42,7 +72,12 @@ function PhotoItem(props: { photo: Photo; onChanged?: () => void }) {
       subtitle={p.originalFileName}
       actions={
         <ActionPanel>
-          <Action.OpenInBrowser title="Open in Immich" url={photoWebUrl(p.id)} />
+          <Action.Push title="Quick Look" icon={Icon.Eye} target={<PhotoPreview photo={p} />} />
+          <Action.OpenInBrowser
+            title="Open in Immich"
+            url={photoWebUrl(p.id)}
+            shortcut={{ modifiers: ["shift"], key: "return" }}
+          />
           <Action
             title={p.isFavorite ? "Remove Favorite" : "Add to Favorites"}
             icon={p.isFavorite ? Icon.HeartDisabled : Icon.Heart}
