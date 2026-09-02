@@ -1,0 +1,73 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "homelab",
+  "title": "Homelab",
+  "description": "Live stats for the home server and NAS — CPU, RAM, disks, temps, uptime.",
+  "icon": "icon.png",
+  "author": "aleksandar",
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "stats",
+      "title": "Homelab Stats",
+      "subtitle": "Homelab",
+      "description": "Server and NAS stats at a glance",
+      "mode": "view"
+    },
+    {
+      "name": "menubar",
+      "title": "Homelab Menu Bar",
+      "subtitle": "Homelab",
+      "description": "CPU load and temperature in the menu bar",
+      "mode": "menu-bar",
+      "interval": "1m"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "glancesUrl",
+      "title": "Glances URL",
+      "description": "Base URL of the Glances v4 API on the server",
+      "type": "textfield",
+      "required": true,
+      "default": "http://abjelosevic-home-server.tail0c02cf.ts.net:61208"
+    },
+    {
+      "name": "tempsUrl",
+      "title": "Temps JSON URL",
+      "description": "URL of the temps.json published by temps-publish.timer",
+      "type": "textfield",
+      "required": true,
+      "default": "http://abjelosevic-home-server.tail0c02cf.ts.net:8090/images/temps.json"
+    },
+    {
+      "name": "truenasUrl",
+      "title": "TrueNAS URL",
+      "description": "Base URL of TrueNAS (via Caddy on the tailnet)",
+      "type": "textfield",
+      "required": false,
+      "default": "https://nas.bjelke.org"
+    },
+    {
+      "name": "truenasApiKey",
+      "title": "TrueNAS API Key",
+      "description": "API key for pool capacity; leave empty to hide the NAS pool row",
+      "type": "password",
+      "required": false
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.88.4",
+    "@raycast/utils": "^1.18.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.2.18",
+    "typescript": "^5.6.3"
+  },
+  "scripts": {
+    "dev": "ray develop",
+    "build": "ray build -e dist",
+    "typecheck": "tsc --noEmit"
+  }
+}
