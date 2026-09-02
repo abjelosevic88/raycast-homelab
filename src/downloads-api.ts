@@ -121,6 +121,16 @@ interface QbitTransfer {
   up_info_speed: number;
 }
 
+// SAB reports time left as "H:MM:SS" (or "D:HH:MM:SS") — compact it like qbit ETAs
+function sabEta(raw: string): string {
+  const parts = raw.split(":").map(Number);
+  if (parts.some(isNaN) || parts.length < 2) return raw;
+  let secs = 0;
+  for (const p of parts) secs = secs * 60 + p;
+  if (parts.length === 4) secs = parts[0] * 86400 + parts[1] * 3600 + parts[2] * 60 + parts[3];
+  return fmtEta(secs);
+}
+
 // ---------- SABnzbd ----------
 
 function sabPrefs() {
@@ -244,13 +254,13 @@ export async function loadDownloads(): Promise<DownloadsData> {
       data.sab = {
         speedBps: parseFloat(q.queue.kbpersec) * 1000,
         paused: q.queue.paused,
-        timeLeft: q.queue.timeleft,
+        timeLeft: sabEta(q.queue.timeleft),
         items: q.queue.slots.map((s) => ({
           id: s.nzo_id,
           name: s.filename,
           progress: parseFloat(s.percentage) / 100,
           detail: `${s.sizeleft} left of ${s.size}`,
-          eta: s.timeleft,
+          eta: sabEta(s.timeleft),
           state: s.status.toLowerCase(),
           paused: s.status === "Paused",
         })),
