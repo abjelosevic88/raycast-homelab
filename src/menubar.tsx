@@ -1,15 +1,31 @@
-import { Icon, MenuBarExtra, open } from "@raycast/api";
+import { Icon, launchCommand, LaunchType, MenuBarExtra, open } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
+import { fmtSpeed, loadDownloads } from "./downloads-api";
+
+function openDownloads() {
+  launchCommand({ name: "downloads", type: LaunchType.UserInitiated });
+}
 
 export default function MenuBar() {
   const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], { keepPreviousData: true });
+  const { data: dl, revalidate: revalidateDl } = useCachedPromise(loadDownloads, [], { keepPreviousData: true });
+
+  const dlSpeed = (dl?.qbit?.dlSpeed ?? 0) + (dl?.sab?.speedBps ?? 0);
+  const upSpeed = dl?.qbit?.upSpeed ?? 0;
+  const activeItems = [
+    ...(dl?.qbit?.downloading ?? []).map((i) => ({ ...i, source: "qbit" })),
+    ...(dl?.sab?.items ?? []).map((i) => ({ ...i, source: "sab" })),
+  ].filter((i) => !i.paused);
+  const hasActivity = activeItems.length > 0 || dlSpeed > 1e4 || upSpeed > 1e4;
 
   const cpuTemp = data?.temps?.server.cpu?.temp;
-  const title =
+  const baseTitle =
     data?.cpu !== undefined
       ? `${Math.round(data.cpu.percent)}%${cpuTemp !== undefined ? ` ${cpuTemp}°` : ""}`
       : undefined;
+  // surface download activity in the menu bar itself, only while it exists
+  const title = baseTitle !== undefined && dlSpeed > 1e5 ? `${baseTitle} ↓${fmtSpeed(dlSpeed)}` : baseTitle;
 
   return (
     <MenuBarExtra icon={Icon.HardDrive} title={title} isLoading={isLoading} tooltip="Homelab">
@@ -66,6 +82,30 @@ export default function MenuBar() {
           />
         )}
       </MenuBarExtra.Section>
+      {hasActivity && (
+        <MenuBarExtra.Section title="Downloads">
+          <MenuBarExtra.Item
+            icon={Icon.LineChart}
+            title={`↓ ${fmtSpeed(dlSpeed)} · ↑ ${fmtSpeed(upSpeed)}`}
+            onAction={openDownloads}
+          />
+          {activeItems.slice(0, 5).map((i) => (
+            <MenuBarExtra.Item
+              key={i.id}
+              icon={Icon.Download}
+              title={`${Math.round(i.progress * 100)}% · ${i.name.length > 45 ? i.name.slice(0, 45) + "…" : i.name}${i.eta && i.eta !== "∞" ? ` · ${i.eta}` : ""}`}
+              onAction={openDownloads}
+            />
+          ))}
+          {dl?.qbit && dl.qbit.seedCount > 0 && upSpeed > 0 && (
+            <MenuBarExtra.Item
+              icon={Icon.ArrowUpCircle}
+              title={`Seeding ${dl.qbit.seedCount} · ↑ ${fmtSpeed(upSpeed)}`}
+              onAction={openDownloads}
+            />
+          )}
+        </MenuBarExtra.Section>
+      )}
       {data && data.errors.length > 0 && (
         <MenuBarExtra.Section title="Errors">
           {data.errors.map((e, i) => (
@@ -77,7 +117,10 @@ export default function MenuBar() {
         <MenuBarExtra.Item
           icon={Icon.ArrowClockwise}
           title={data ? `Updated ${new Date(data.fetchedAt).toLocaleTimeString()} — Refresh` : "Refresh"}
-          onAction={() => revalidate()}
+          onAction={() => {
+            revalidate();
+            revalidateDl();
+          }}
         />
       </MenuBarExtra.Section>
     </MenuBarExtra>
