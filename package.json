@@ -21,6 +21,13 @@
       "description": "CPU load and temperature in the menu bar",
       "mode": "menu-bar",
       "interval": "30s"
+    },
+    {
+      "name": "downloads",
+      "title": "Homelab Downloads",
+      "subtitle": "Homelab",
+      "description": "qBittorrent and SABnzbd activity in one place",
+      "mode": "view"
     }
   ],
   "preferences": [
@@ -52,6 +59,42 @@
       "name": "truenasApiKey",
       "title": "TrueNAS API Key",
       "description": "API key for pool capacity; leave empty to hide the NAS pool row",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "qbitUrl",
+      "title": "qBittorrent URL",
+      "description": "Leave empty for https://qbit.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "qbitUsername",
+      "title": "qBittorrent Username",
+      "description": "WebUI username",
+      "type": "textfield",
+      "required": false,
+      "default": "admin"
+    },
+    {
+      "name": "qbitPassword",
+      "title": "qBittorrent Password",
+      "description": "WebUI password",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "sabnzbdUrl",
+      "title": "SABnzbd URL",
+      "description": "Leave empty for https://sabnzbd.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "sabnzbdApiKey",
+      "title": "SABnzbd API Key",
+      "description": "Config \u2192 General \u2192 API Key",
       "type": "password",
       "required": false
     }
