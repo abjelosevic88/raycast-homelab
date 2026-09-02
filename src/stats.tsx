@@ -1,5 +1,5 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
-import { getProgressIcon, usePromise } from "@raycast/utils";
+import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { fmtDisk, fmtGiB, loadStats, TempReading } from "./api";
 
 function usageColor(percent: number): Color {
@@ -39,7 +39,7 @@ function CommonActions(props: { onRefresh: () => void }) {
 }
 
 export default function Stats() {
-  const { data, isLoading, revalidate } = usePromise(loadStats);
+  const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], { keepPreviousData: true });
   const actions = <CommonActions onRefresh={revalidate} />;
 
   const rootFs = data?.fs.find((f) => f.mountPoint === "/");

@@ -20,7 +20,7 @@
       "subtitle": "Homelab",
       "description": "CPU load and temperature in the menu bar",
       "mode": "menu-bar",
-      "interval": "1m"
+      "interval": "30s"
     }
   ],
   "preferences": [

@@ -53,6 +53,7 @@ export interface HomelabStats {
   temps?: Temps;
   pool?: PoolStats;
   errors: string[];
+  fetchedAt: number;
 }
 
 const TIMEOUT_MS = 8000;
@@ -121,7 +122,7 @@ export async function loadStats(): Promise<HomelabStats> {
   const prefs = getPreferenceValues<Preferences>();
   const g = prefs.glancesUrl.replace(/\/+$/, "");
 
-  const stats: HomelabStats = { fs: [], errors: [] };
+  const stats: HomelabStats = { fs: [], errors: [], fetchedAt: Date.now() };
 
   const tasks: Promise<void>[] = [
     Promise.all([

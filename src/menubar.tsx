@@ -1,9 +1,9 @@
 import { Icon, MenuBarExtra, open } from "@raycast/api";
-import { usePromise } from "@raycast/utils";
+import { useCachedPromise } from "@raycast/utils";
 import { fmtDisk, fmtGiB, loadStats } from "./api";
 
 export default function MenuBar() {
-  const { data, isLoading } = usePromise(loadStats);
+  const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], { keepPreviousData: true });
 
   const cpuTemp = data?.temps?.server.cpu?.temp;
   const title =
@@ -73,6 +73,13 @@ export default function MenuBar() {
           ))}
         </MenuBarExtra.Section>
       )}
+      <MenuBarExtra.Section>
+        <MenuBarExtra.Item
+          icon={Icon.ArrowClockwise}
+          title={data ? `Updated ${new Date(data.fetchedAt).toLocaleTimeString()} — Refresh` : "Refresh"}
+          onAction={() => revalidate()}
+        />
+      </MenuBarExtra.Section>
     </MenuBarExtra>
   );
 }
