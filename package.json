@@ -8,6 +8,18 @@
   "license": "MIT",
   "commands": [
     {
+      "name": "home",
+      "title": "Homelab Home",
+      "subtitle": "Homelab",
+      "description": "One place for everything: live status, commands, quick links",
+      "mode": "view",
+      "keywords": [
+        "homelab",
+        "dashboard",
+        "hub"
+      ]
+    },
+    {
       "name": "stats",
       "title": "Homelab Stats",
       "subtitle": "Homelab",
