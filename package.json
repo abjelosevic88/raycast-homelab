@@ -107,6 +107,18 @@
         "album",
         "artist"
       ]
+    },
+    {
+      "name": "notifications",
+      "title": "Notifications",
+      "subtitle": "Homelab",
+      "description": "ntfy alerts and download notifications from the last 7 days",
+      "mode": "view",
+      "keywords": [
+        "ntfy",
+        "alerts",
+        "notifications"
+      ]
     }
   ],
   "preferences": [
@@ -254,6 +266,21 @@
       "description": "Used for Subsonic token auth (md5, never sent raw)",
       "type": "password",
       "required": false
+    },
+    {
+      "name": "ntfyUrl",
+      "title": "ntfy URL",
+      "description": "Leave empty for https://ntfy.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "ntfyTopics",
+      "title": "ntfy Topics",
+      "description": "Comma-separated topics to show",
+      "type": "textfield",
+      "required": false,
+      "default": "alerts,downloads"
     }
   ],
   "dependencies": {
