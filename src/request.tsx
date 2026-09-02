@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Icon, List, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Color, Grid, Icon, showToast, Toast } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import { getProfiles, jellyseerrPrefs, requestMedia, searchMedia, SearchResult, ServiceProfiles, STATUS } from "./jellyseerr-api";
@@ -30,8 +30,6 @@ function ProfileSubmenu(props: { result: SearchResult; onPick: (profileId: numbe
     </ActionPanel.Submenu>
   );
 }
-
-const TAG_COLORS = { green: Color.Green, orange: Color.Orange, blue: Color.Blue, yellow: Color.Yellow } as const;
 
 function titleOf(r: SearchResult): string {
   return r.title ?? r.name ?? "Untitled";
@@ -67,43 +65,43 @@ export default function Request() {
   }
 
   return (
-    <List
+    <Grid
       isLoading={isLoading}
       searchText={query}
       onSearchTextChange={setQuery}
       throttle
+      columns={5}
+      aspectRatio="2/3"
+      fit={Grid.Fit.Fill}
       searchBarPlaceholder="Search movies & shows on Jellyseerr…"
     >
       {!key && (
-        <List.EmptyView
+        <Grid.EmptyView
           icon={{ source: Icon.Key, tintColor: Color.Orange }}
           title="Jellyseerr API key not set"
           description="⌘K → Configure Extension → paste the API key from Jellyseerr → Settings → General"
         />
       )}
       {key && query.trim().length < 2 && (
-        <List.EmptyView icon={Icon.MagnifyingGlass} title="Type to search" description="Movies and TV shows" />
+        <Grid.EmptyView icon={Icon.MagnifyingGlass} title="Type to search" description="Movies and TV shows" />
       )}
       {data?.map((r) => {
         const status = r.mediaInfo?.status ? STATUS[r.mediaInfo.status] : undefined;
         const requestable = !status || r.mediaInfo?.status === 1;
         const webUrl = `${url}/${r.mediaType}/${r.id}`;
+        const subtitle = [yearOf(r), r.mediaType === "tv" ? "TV" : "Movie", status?.label]
+          .filter(Boolean)
+          .join(" · ");
         return (
-          <List.Item
+          <Grid.Item
             key={`${r.mediaType}-${r.id}`}
-            icon={
+            content={
               r.posterPath
-                ? { source: `https://image.tmdb.org/t/p/w92${r.posterPath}` }
-                : r.mediaType === "tv"
-                  ? Icon.Monitor
-                  : Icon.FilmStrip
+                ? { source: `https://image.tmdb.org/t/p/w342${r.posterPath}` }
+                : { source: r.mediaType === "tv" ? Icon.Monitor : Icon.FilmStrip, tintColor: Color.SecondaryText }
             }
             title={titleOf(r)}
-            subtitle={yearOf(r)}
-            accessories={[
-              { tag: { value: r.mediaType === "tv" ? "TV" : "Movie", color: r.mediaType === "tv" ? Color.Purple : Color.Blue } },
-              ...(status ? [{ tag: { value: status.label, color: TAG_COLORS[status.color] } }] : []),
-            ]}
+            subtitle={subtitle}
             actions={
               <ActionPanel>
                 {requestable ? (
@@ -129,6 +127,6 @@ export default function Request() {
           />
         );
       })}
-    </List>
+    </Grid>
   );
 }
