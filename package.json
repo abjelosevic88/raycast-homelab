@@ -81,6 +81,19 @@
         "expense",
         "spend"
       ]
+    },
+    {
+      "name": "monitors",
+      "title": "Homelab Monitors",
+      "subtitle": "Homelab",
+      "description": "Uptime Kuma monitor status \u2014 what's down right now",
+      "mode": "view",
+      "keywords": [
+        "kuma",
+        "uptime",
+        "down",
+        "status"
+      ]
     }
   ],
   "preferences": [
@@ -183,6 +196,28 @@
       "name": "fireflyToken",
       "title": "Firefly III Personal Access Token",
       "description": "Firefly III \u2192 Options \u2192 Profile \u2192 OAuth \u2192 Personal Access Tokens",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "kumaUrl",
+      "title": "Uptime Kuma URL",
+      "description": "Leave empty for https://kuma.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "kumaStatusSlug",
+      "title": "Kuma Status Page Slug",
+      "description": "Used without an API key (default: home)",
+      "type": "textfield",
+      "required": false,
+      "default": "home"
+    },
+    {
+      "name": "kumaApiKey",
+      "title": "Kuma API Key",
+      "description": "Optional \u2014 Settings \u2192 API Keys; enables ALL monitors via /metrics",
       "type": "password",
       "required": false
     }

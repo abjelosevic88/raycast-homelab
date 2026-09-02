@@ -9,6 +9,8 @@ import Downloads from "./downloads";
 import Request from "./request";
 import Requests from "./requests";
 import Transaction from "./transaction";
+import Monitors from "./monitors";
+import { loadKuma } from "./kuma-api";
 
 const POLL_MS = 10000;
 
@@ -19,6 +21,7 @@ const COMMANDS = [
   { name: "request", title: "Discover Media", subtitle: "Browse & request movies and shows", icon: Icon.FilmStrip, view: () => <Request /> },
   { name: "requests", title: "Request History", subtitle: "Approve · decline · retry", icon: Icon.BulletPoints, view: () => <Requests /> },
   { name: "transaction", title: "Add Transaction", subtitle: "Firefly Pico assistant & templates", icon: Icon.Coins, view: () => <Transaction /> },
+  { name: "monitors", title: "Homelab Monitors", subtitle: "Uptime Kuma — what's down", icon: Icon.Heartbeat, view: () => <Monitors /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [
@@ -35,11 +38,13 @@ const LINKS: { title: string; url: string; icon: Icon }[] = [
 export default function Home() {
   const stats = useCachedPromise(loadStats, [], { keepPreviousData: true });
   const dls = useCachedPromise(loadDownloads, [], { keepPreviousData: true });
+  const kuma = useCachedPromise(loadKuma, [], { keepPreviousData: true });
 
   useEffect(() => {
     const t = setInterval(() => {
       stats.revalidate();
       dls.revalidate();
+      kuma.revalidate();
     }, POLL_MS);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -117,6 +122,30 @@ export default function Home() {
             </ActionPanel>
           }
         />
+        {kuma.data &&
+          (() => {
+            const down = kuma.data.monitors.filter((m) => m.status === 0);
+            return (
+              <List.Item
+                icon={{
+                  source: down.length > 0 ? Icon.XMarkCircle : Icon.Heartbeat,
+                  tintColor: down.length > 0 ? Color.Red : Color.Green,
+                }}
+                title="Monitors"
+                subtitle={
+                  down.length > 0
+                    ? `${down.length} DOWN: ${down.map((m) => m.name).slice(0, 3).join(", ")}`
+                    : `all ${kuma.data.monitors.length} up`
+                }
+                actions={
+                  <ActionPanel>
+                    <Action.Push title="Open Homelab Monitors" icon={Icon.Heartbeat} target={<Monitors />} />
+                    <Action.OpenInBrowser title="Open Uptime Kuma" url="https://kuma.bjelke.org" />
+                  </ActionPanel>
+                }
+              />
+            );
+          })()}
         {[...(s?.errors ?? []), ...(d?.errors ?? [])].slice(0, 2).map((e, i) => (
           <List.Item key={i} icon={{ source: Icon.Warning, tintColor: Color.Red }} title={e} />
         ))}
