@@ -3,6 +3,7 @@ import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import {
   AssistantData,
+  convertAmount,
   createTransaction,
   FIREFLY_URLS,
   hasFireflyToken,
@@ -45,10 +46,18 @@ export default function Transaction() {
   function summarize(p: ParsedInput, d: AssistantData): { title: string; accessories: List.Item.Accessory[] } {
     const t = p.template;
     const account = t.sourceId ? d.accounts[t.sourceId] : undefined;
-    const amountText =
-      p.amount !== undefined
-        ? `${p.amount}${p.currency ? ` ${p.currency}` : account ? ` ${account.currency}` : ""}`
-        : "no amount";
+    let amountText = "no amount";
+    if (p.amount !== undefined) {
+      const cur = p.currency ?? account?.currency;
+      amountText = `${p.amount}${cur ? ` ${cur}` : ""}`;
+      if (p.currency && account && p.currency !== account.currency) {
+        const converted = convertAmount(p.amount, p.currency, account.currency, d.rates);
+        amountText +=
+          converted !== undefined
+            ? ` ≈ ${converted.toFixed(2)} ${account.currency}`
+            : ` (no ${p.currency}→${account.currency} rate!)`;
+      }
+    }
     const when = p.dayOffset === 0 ? "today" : `${p.dayOffset > 0 ? "+" : ""}${p.dayOffset}d`;
     return {
       title: `${p.description} — ${amountText}`,
@@ -120,7 +129,11 @@ export default function Transaction() {
                   ...(t.categoryId && data.categoryNames[t.categoryId]
                     ? [{ tag: data.categoryNames[t.categoryId] }]
                     : []),
-                  ...(t.amount ? [{ text: `${t.amount} ${account?.currency ?? ""}` }] : []),
+                  ...(t.amount
+                    ? [{ text: `${t.amount} ${t.defaultCurrency ?? account?.currency ?? ""}` }]
+                    : t.defaultCurrency
+                      ? [{ tag: t.defaultCurrency }]
+                      : []),
                   ...(account ? [{ text: account.name }] : []),
                 ]}
                 actions={

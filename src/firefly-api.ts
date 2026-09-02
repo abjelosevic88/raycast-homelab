@@ -63,6 +63,8 @@ export interface PicoTemplate {
   description: string;
   notes?: string;
   tagIds: number[];
+  // house convention: "[currency:EUR]" in template notes = amounts are entered in that currency
+  defaultCurrency?: string;
 }
 
 export interface AssistantData {
@@ -70,6 +72,7 @@ export interface AssistantData {
   tagNames: Record<number, string>;
   categoryNames: Record<number, string>;
   accounts: Record<number, { name: string; currency: string }>;
+  rates: Record<string, number>; // "EUR->BAM": 1.9558
 }
 
 interface RawPicoTemplate {
@@ -86,7 +89,7 @@ interface RawPicoTemplate {
 }
 
 export async function loadAssistantData(): Promise<AssistantData> {
-  const [tpl, tags, cats, accts] = await Promise.all([
+  const [tpl, tags, cats, accts, ratesRaw] = await Promise.all([
     apiFetch<{ data: RawPicoTemplate[] }>("pico", "/api/transaction-templates?limit=200"),
     apiFetch<{ data: { id: string; attributes: { tag: string } }[] }>("core", "/api/v1/tags?limit=200"),
     apiFetch<{ data: { id: string; attributes: { name: string } }[] }>("core", "/api/v1/categories?limit=200"),
@@ -94,7 +97,17 @@ export async function loadAssistantData(): Promise<AssistantData> {
       "core",
       "/api/v1/accounts?type=asset&limit=100",
     ),
+    apiFetch<{ data: RawRate[] }>("core", "/api/v1/exchange-rates?limit=200").catch(() => ({ data: [] as RawRate[] })),
   ]);
+
+  const rates: Record<string, number> = {};
+  for (const r of ratesRaw.data) {
+    const a = r.attributes;
+    const rate = Number(a.rate);
+    if (!rate) continue;
+    rates[`${a.from_currency_code}->${a.to_currency_code}`] = rate;
+    rates[`${a.to_currency_code}->${a.from_currency_code}`] = 1 / rate;
+  }
 
   const tagNames: Record<number, string> = {};
   for (const t of tags.data) tagNames[Number(t.id)] = t.attributes.tag;
@@ -115,10 +128,12 @@ export async function loadAssistantData(): Promise<AssistantData> {
       description: t.description || t.name,
       notes: t.notes ?? undefined,
       tagIds: (t.tags ?? []).map((x) => x.tag_id),
+      defaultCurrency: t.notes?.match(/\[currency:([A-Za-z]{3})\]/)?.[1]?.toUpperCase(),
     })),
     tagNames,
     categoryNames,
     accounts,
+    rates,
   };
 }
 
@@ -137,24 +152,31 @@ const CURRENCY_ALIASES: Record<string, string> = { km: "BAM", eur: "EUR", euro: 
 export function parseAssistant(input: string, templates: PicoTemplate[]): ParsedInput | null {
   const raw = input.trim();
   if (!raw) return null;
-  const lower = raw.toLowerCase();
+  const allTokens = raw.split(/\s+/);
 
-  // longest full-name prefix wins; fall back to a unique first-token prefix match
-  let template = [...templates]
-    .sort((a, b) => b.name.length - a.name.length)
-    .find((t) => lower === t.name.toLowerCase() || lower.startsWith(t.name.toLowerCase() + " "));
-  let rest: string;
-  if (template) {
-    rest = raw.slice(template.name.length).trim();
-  } else {
-    const first = lower.split(/\s+/)[0];
-    const cands = templates.filter((t) => t.name.toLowerCase().startsWith(first));
-    if (cands.length !== 1) return null;
-    template = cands[0];
-    rest = raw.split(/\s+/).slice(1).join(" ");
+  // Take the longest run of leading tokens that is a prefix of exactly one
+  // template name ("cg h" → "cg hrana"); an exact full-name match always wins
+  // even when other templates share the prefix ("Hrana" vs "Hrana extra").
+  let template: PicoTemplate | undefined;
+  let consumed = 0;
+  for (let k = allTokens.length; k >= 1; k--) {
+    const prefix = allTokens.slice(0, k).join(" ").toLowerCase();
+    const cands = templates.filter((t) => t.name.toLowerCase().startsWith(prefix));
+    const exact = cands.find((t) => t.name.toLowerCase() === prefix);
+    if (exact) {
+      template = exact;
+      consumed = k;
+      break;
+    }
+    if (cands.length === 1) {
+      template = cands[0];
+      consumed = k;
+      break;
+    }
   }
+  if (!template) return null;
 
-  let tokens = rest.length > 0 ? rest.split(/\s+/) : [];
+  let tokens = allTokens.slice(consumed);
   let dayOffset = 0;
   const last = tokens[tokens.length - 1];
   const dm = last?.match(/^([+-])(\d+)d$/i);
@@ -181,7 +203,8 @@ export function parseAssistant(input: string, templates: PicoTemplate[]): Parsed
   return {
     template,
     amount: amount ?? template.amount,
-    currency: currency ? (CURRENCY_ALIASES[currency] ?? currency.toUpperCase()) : undefined,
+    // explicit currency beats the template's [currency:XXX] default
+    currency: currency ? (CURRENCY_ALIASES[currency] ?? currency.toUpperCase()) : template.defaultCurrency,
     description: tokens.join(" ") || template.description,
     dayOffset,
   };
@@ -193,14 +216,10 @@ interface RawRate {
   attributes: { from_currency_code: string; to_currency_code: string; rate: string };
 }
 
-async function getRate(from: string, to: string): Promise<number | undefined> {
-  const data = await apiFetch<{ data: RawRate[] }>("core", "/api/v1/exchange-rates?limit=200");
-  for (const r of data.data) {
-    const a = r.attributes;
-    if (a.from_currency_code === from && a.to_currency_code === to) return Number(a.rate);
-    if (a.from_currency_code === to && a.to_currency_code === from) return 1 / Number(a.rate);
-  }
-  return undefined;
+export function convertAmount(amount: number, from: string, to: string, rates: Record<string, number>): number | undefined {
+  if (from === to) return amount;
+  const r = rates[`${from}->${to}`];
+  return r ? amount * r : undefined;
 }
 
 export async function createTransaction(p: ParsedInput, data: AssistantData): Promise<string> {
@@ -212,10 +231,10 @@ export async function createTransaction(p: ParsedInput, data: AssistantData): Pr
   let amount = p.amount;
   let foreign: { foreign_amount: string; foreign_currency_code: string } | undefined;
   if (p.currency && accCurrency && p.currency !== accCurrency) {
-    const rate = await getRate(p.currency, accCurrency);
-    if (!rate) throw new Error(`No exchange rate ${p.currency}→${accCurrency} in Firefly`);
+    const converted = convertAmount(p.amount, p.currency, accCurrency, data.rates);
+    if (converted === undefined) throw new Error(`No exchange rate ${p.currency}→${accCurrency} in Firefly`);
     foreign = { foreign_amount: p.amount.toFixed(2), foreign_currency_code: p.currency };
-    amount = p.amount * rate;
+    amount = converted;
   }
 
   const date = new Date(Date.now() + p.dayOffset * 86400000).toISOString().slice(0, 10);
