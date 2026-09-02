@@ -54,7 +54,8 @@ export const PHOTO_MODES: { id: PhotoMode; title: string }[] = [
 ];
 
 export async function listPhotos(mode: PhotoMode, page: number): Promise<{ photos: Photo[]; hasMore: boolean }> {
-  const body: Record<string, unknown> = { size: PAGE_SIZE, page: page + 1, order: "desc" };
+  // "timeline" excludes hidden assets (e.g. the .MOV halves of Live Photos)
+  const body: Record<string, unknown> = { size: PAGE_SIZE, page: page + 1, order: "desc", visibility: "timeline" };
   if (mode === "favorites") body.isFavorite = true;
   if (mode === "videos") body.type = "VIDEO";
   const r = await api<SearchResponse>("/api/search/metadata", { method: "POST", body: JSON.stringify(body) });
