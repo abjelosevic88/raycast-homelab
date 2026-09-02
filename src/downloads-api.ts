@@ -191,9 +191,17 @@ export interface DownloadsData {
 
 export async function loadDownloads(): Promise<DownloadsData> {
   const data: DownloadsData = { errors: [], fetchedAt: Date.now() };
+  const prefs = getPreferenceValues<Preferences>();
 
-  const tasks: Promise<void>[] = [
-    Promise.all([
+  const tasks: Promise<void>[] = [];
+
+  // Never attempt a login without a password: qBittorrent bans the source IP
+  // after 5 failed attempts, and behind Caddy that bans the whole vhost.
+  if (!prefs.qbitPassword) {
+    data.errors.push("qBittorrent password not set — add it in the extension preferences (⌘K → Configure Extension)");
+  } else {
+    tasks.push(
+      Promise.all([
       qbitGet<QbitTorrent[]>("/api/v2/torrents/info?filter=downloading"),
       qbitGet<QbitTransfer>("/api/v2/transfer/info"),
       qbitGet<QbitTorrent[]>("/api/v2/torrents/info?filter=completed&sort=completion_on&reverse=true&limit=5"),
@@ -218,7 +226,11 @@ export async function loadDownloads(): Promise<DownloadsData> {
           detail: fmtSize(t.size),
         })),
       };
-    }),
+      }),
+    );
+  }
+
+  tasks.push(
     Promise.all([sabGet<SabQueue>({ mode: "queue" }), sabGet<SabHistory>({ mode: "history", start: "0", limit: "5" })]).then(
       ([q, h]) => {
         data.sab = {
@@ -242,7 +254,7 @@ export async function loadDownloads(): Promise<DownloadsData> {
         };
       },
     ),
-  ];
+  );
 
   for (const r of await Promise.allSettled(tasks)) {
     if (r.status === "rejected") data.errors.push(String(r.reason?.message ?? r.reason));
