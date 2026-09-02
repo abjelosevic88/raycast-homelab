@@ -237,7 +237,8 @@ export async function createTransaction(p: ParsedInput, data: AssistantData): Pr
     amount = converted;
   }
 
-  const date = new Date(Date.now() + p.dayOffset * 86400000).toISOString().slice(0, 10);
+  // full timestamp, not date-only: midnight-dated entries sort before the whole day
+  const date = new Date(Date.now() + p.dayOffset * 86400000).toISOString();
   const tx = {
     type: t.type,
     date,
