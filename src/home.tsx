@@ -1,21 +1,22 @@
-import { Action, ActionPanel, Color, Icon, launchCommand, LaunchType, List } from "@raycast/api";
+import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
 import { DL_URLS, fmtSpeed, loadDownloads } from "./downloads-api";
 import { JELLYSEERR_URL } from "./jellyseerr-api";
+import Stats from "./stats";
+import Downloads from "./downloads";
+import Request from "./request";
+import Requests from "./requests";
 
 const POLL_MS = 10000;
 
-function launch(name: string) {
-  return launchCommand({ name, type: LaunchType.UserInitiated });
-}
-
-const COMMANDS: { name: string; title: string; subtitle: string; icon: Icon }[] = [
-  { name: "stats", title: "Homelab Stats", subtitle: "CPU · RAM · disks · temps · NAS", icon: Icon.Gauge },
-  { name: "downloads", title: "Homelab Downloads", subtitle: "Torrents & Usenet, live", icon: Icon.Download },
-  { name: "request", title: "Discover Media", subtitle: "Browse & request movies and shows", icon: Icon.FilmStrip },
-  { name: "requests", title: "Request History", subtitle: "Approve · decline · retry", icon: Icon.BulletPoints },
+// Pushed (not launched) so Esc/Back returns here instead of the Raycast root
+const COMMANDS = [
+  { name: "stats", title: "Homelab Stats", subtitle: "CPU · RAM · disks · temps · NAS", icon: Icon.Gauge, view: () => <Stats /> },
+  { name: "downloads", title: "Homelab Downloads", subtitle: "Torrents & Usenet, live", icon: Icon.Download, view: () => <Downloads /> },
+  { name: "request", title: "Discover Media", subtitle: "Browse & request movies and shows", icon: Icon.FilmStrip, view: () => <Request /> },
+  { name: "requests", title: "Request History", subtitle: "Approve · decline · retry", icon: Icon.BulletPoints, view: () => <Requests /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [
@@ -65,7 +66,7 @@ export default function Home() {
             ]}
             actions={
               <ActionPanel>
-                <Action title="Open Homelab Stats" icon={Icon.Gauge} onAction={() => launch("stats")} />
+                <Action.Push title="Open Homelab Stats" icon={Icon.Gauge} target={<Stats />} />
                 <Action.OpenInBrowser title="Open Glances" url={URLS.glances} />
               </ActionPanel>
             }
@@ -84,8 +85,8 @@ export default function Home() {
             ]}
             actions={
               <ActionPanel>
+                <Action.Push title="Open Homelab Stats" icon={Icon.Gauge} target={<Stats />} />
                 <Action.OpenInBrowser title="Open TrueNAS" url={URLS.truenas} />
-                <Action title="Open Homelab Stats" icon={Icon.Gauge} onAction={() => launch("stats")} />
               </ActionPanel>
             }
           />
@@ -110,7 +111,7 @@ export default function Home() {
           ]}
           actions={
             <ActionPanel>
-              <Action title="Open Homelab Downloads" icon={Icon.Download} onAction={() => launch("downloads")} />
+              <Action.Push title="Open Homelab Downloads" icon={Icon.Download} target={<Downloads />} />
             </ActionPanel>
           }
         />
@@ -128,7 +129,7 @@ export default function Home() {
             subtitle={c.subtitle}
             actions={
               <ActionPanel>
-                <Action title={`Open ${c.title}`} icon={c.icon} onAction={() => launch(c.name)} />
+                <Action.Push title={`Open ${c.title}`} icon={c.icon} target={c.view()} />
               </ActionPanel>
             }
           />
