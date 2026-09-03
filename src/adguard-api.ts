@@ -43,11 +43,12 @@ function guessLabel(ip: string): string | undefined {
 export async function resolveClientNames(ips: string[]): Promise<Record<string, string>> {
   if (ips.length === 0) return {};
   const qs = ips.map((ip, i) => `ip${i}=${encodeURIComponent(ip)}`).join("&");
-  const r = await ag<Record<string, { name?: string }[]>[]>(`/control/clients/find?${qs}`);
+  // shape: [{ "<ip>": { name, ids, … } }, …]
+  const r = await ag<Record<string, { name?: string } | { name?: string }[]>[]>(`/control/clients/find?${qs}`);
   const out: Record<string, string> = {};
   for (const entry of r) {
-    for (const [ip, infos] of Object.entries(entry)) {
-      const name = infos?.[0]?.name;
+    for (const [ip, info] of Object.entries(entry)) {
+      const name = Array.isArray(info) ? info[0]?.name : info?.name;
       if (name) out[ip] = name;
     }
   }
