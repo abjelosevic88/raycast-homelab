@@ -6,11 +6,14 @@ interface Preferences {
   qbitPassword?: string;
   sabnzbdUrl?: string;
   sabnzbdApiKey?: string;
+  slskdUrl?: string;
+  slskdApiKey?: string;
 }
 
 export const DL_URLS = {
   qbit: "https://qbit.bjelke.org",
   sab: "https://sabnzbd.bjelke.org",
+  slskd: "https://slskd.bjelke.org",
 };
 
 const TIMEOUT_MS = 8000;
@@ -168,6 +171,55 @@ interface SabQueue {
     }[];
   };
 }
+// ---------- slskd (Soulseek) ----------
+
+interface SlskdFile {
+  id: string;
+  filename: string;
+  state: string; // "Queued, Remotely" | "InProgress" | "Completed, Succeeded" | ...
+  percentComplete: number;
+  averageSpeed: number;
+  size: number;
+}
+interface SlskdUser {
+  username: string;
+  directories?: { files?: SlskdFile[] }[];
+}
+
+async function loadSlskd(): Promise<{ items: DownloadItem[]; dlSpeed: number } | undefined> {
+  const p = getPreferenceValues<Preferences>();
+  if (!p.slskdApiKey) return undefined;
+  const url = base(p.slskdUrl, DL_URLS.slskd);
+  const res = await fetch(`${url}/api/v0/transfers/downloads`, {
+    headers: { "X-API-Key": p.slskdApiKey },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`slskd → HTTP ${res.status}`);
+  const users = (await res.json()) as SlskdUser[];
+  const items: DownloadItem[] = [];
+  let dlSpeed = 0;
+  for (const u of users) {
+    for (const dir of u.directories ?? []) {
+      for (const f of dir.files ?? []) {
+        if (f.state.includes("Completed")) continue;
+        const active = f.state.includes("InProgress");
+        if (active) dlSpeed += f.averageSpeed;
+        items.push({
+          id: f.id,
+          name: `${f.filename.split(/[\\/]/).pop() ?? f.filename}`,
+          progress: f.percentComplete / 100,
+          detail: `from ${u.username} · ${fmtSize(f.size)}`,
+          speed: active && f.averageSpeed > 0 ? fmtSpeed(f.averageSpeed) : undefined,
+          state: active ? "downloading" : "queued",
+          paused: false,
+        });
+      }
+    }
+  }
+  items.sort((a, b) => (a.state === "downloading" ? -1 : 1) - (b.state === "downloading" ? -1 : 1));
+  return { items: items.slice(0, 15), dlSpeed };
+}
+
 // ---------- combined ----------
 
 export interface DownloadItem {
@@ -203,6 +255,7 @@ export interface DownloadsData {
     timeLeft: string;
     items: DownloadItem[];
   };
+  slskd?: { items: DownloadItem[]; dlSpeed: number };
   errors: string[];
   fetchedAt: number;
 }
@@ -265,6 +318,12 @@ export async function loadDownloads(): Promise<DownloadsData> {
           paused: s.status === "Paused",
         })),
       };
+    }),
+  );
+
+  tasks.push(
+    loadSlskd().then((s) => {
+      data.slskd = s;
     }),
   );
 

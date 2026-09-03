@@ -134,6 +134,33 @@ export default function Downloads() {
         {data?.sab?.items.map((i) => activeItem("sab", i))}
       </List.Section>
 
+      {data?.slskd && (
+        <List.Section
+          title={`Soulseek — slskd${data.slskd.dlSpeed > 0 ? ` — ↓ ${fmtSpeed(data.slskd.dlSpeed)}` : ""}`}
+          subtitle={data.slskd.items.length === 0 ? "idle" : `${data.slskd.items.length} transfers`}
+        >
+          {data.slskd.items.map((i) => (
+            <List.Item
+              key={i.id}
+              icon={getProgressIcon(i.progress, i.state === "downloading" ? Color.Blue : Color.Orange)}
+              title={i.name}
+              subtitle={i.detail}
+              accessories={[
+                { text: `${Math.round(i.progress * 100)}%` },
+                ...(i.speed ? [{ text: i.speed }] : []),
+                { tag: { value: i.state, color: i.state === "downloading" ? Color.Blue : Color.Orange } },
+              ]}
+              actions={
+                <ActionPanel>
+                  <Action.OpenInBrowser title="Open Slskd" url={DL_URLS.slskd} />
+                  {common}
+                </ActionPanel>
+              }
+            />
+          ))}
+        </List.Section>
+      )}
+
       {data && data.errors.length > 0 && (
         <List.Section title="Errors">
           {data.errors.map((e, i) => (

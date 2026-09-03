@@ -13,6 +13,11 @@ import Monitors from "./monitors";
 import Music from "./music";
 import Notifications from "./notifications";
 import Photos from "./photos";
+import Audiobooks from "./audiobooks";
+import Calendar from "./calendar";
+import Containers from "./containers";
+import Metube from "./metube";
+import { HEALTH_URLS, loadBackups, loadDiskHealth, loadSpeedtest } from "./health-api";
 import { loadKuma } from "./kuma-api";
 
 const POLL_MS = 10000;
@@ -28,6 +33,10 @@ const COMMANDS = [
   { name: "music", title: "Music Library", subtitle: "Navidrome albums with cover art", icon: Icon.Music, view: () => <Music /> },
   { name: "notifications", title: "Notifications", subtitle: "ntfy alerts & downloads, last 7 days", icon: Icon.Bell, view: () => <Notifications /> },
   { name: "photos", title: "Photos", subtitle: "Immich browse & smart search", icon: Icon.Image, view: () => <Photos /> },
+  { name: "audiobooks", title: "Audiobooks", subtitle: "Audiobookshelf — continue listening & browse", icon: Icon.Headphones, view: () => <Audiobooks /> },
+  { name: "calendar", title: "Media Calendar", subtitle: "Upcoming releases + stuck queues (arr stack)", icon: Icon.Calendar, view: () => <Calendar /> },
+  { name: "containers", title: "Containers", subtitle: "Komodo stacks — restart from Raycast", icon: Icon.Box, view: () => <Containers /> },
+  { name: "metube", title: "Send to MeTube", subtitle: "Clipboard URL → video or Navidrome dropbox", icon: Icon.Link, view: () => <Metube /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [
@@ -45,6 +54,15 @@ export default function Home() {
   const stats = useCachedPromise(loadStats, [], { keepPreviousData: true });
   const dls = useCachedPromise(loadDownloads, [], { keepPreviousData: true });
   const kuma = useCachedPromise(loadKuma, [], { keepPreviousData: true });
+  const disks = useCachedPromise(loadDiskHealth, [], { keepPreviousData: true });
+  const speed = useCachedPromise(loadSpeedtest, [], { keepPreviousData: true });
+  const backups = useCachedPromise(async () => {
+    try {
+      return await loadBackups();
+    } catch {
+      return undefined; // password not set or login failed — hide the row
+    }
+  }, [], { keepPreviousData: true });
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -152,6 +170,57 @@ export default function Home() {
               />
             );
           })()}
+        {disks.data && (
+          <List.Item
+            icon={{
+              source: disks.data.warnings.length > 0 ? Icon.Warning : Icon.CheckCircle,
+              tintColor: disks.data.warnings.length > 0 ? Color.Red : Color.Green,
+            }}
+            title="Disks"
+            subtitle={
+              disks.data.warnings.length > 0
+                ? `SMART warnings: ${disks.data.warnings.join(", ")}`
+                : `all ${disks.data.total} passed`
+            }
+            actions={
+              <ActionPanel>
+                <Action.OpenInBrowser title="Open Scrutiny" url={HEALTH_URLS.scrutiny} />
+              </ActionPanel>
+            }
+          />
+        )}
+        {backups.data && backups.data.length > 0 && (
+          <List.Item
+            icon={{
+              source: backups.data.some((b) => !b.ok) ? Icon.Warning : Icon.CheckCircle,
+              tintColor: backups.data.some((b) => !b.ok) ? Color.Red : Color.Green,
+            }}
+            title="Backups"
+            subtitle={
+              backups.data.some((b) => !b.ok)
+                ? `FAILED: ${backups.data.filter((b) => !b.ok).map((b) => b.planId).join(", ")}`
+                : `${backups.data.length} plans ok · last ${new Date(backups.data[0].when).toLocaleDateString()}`
+            }
+            actions={
+              <ActionPanel>
+                <Action.OpenInBrowser title="Open Backrest" url={HEALTH_URLS.backrest} />
+              </ActionPanel>
+            }
+          />
+        )}
+        {speed.data && (
+          <List.Item
+            icon={{ source: Icon.Bolt, tintColor: Color.SecondaryText }}
+            title="Speedtest"
+            subtitle={`↓ ${speed.data.download} · ↑ ${speed.data.upload} Mbps · ping ${Math.round(speed.data.ping)} ms`}
+            accessories={[{ text: speed.data.createdAt.slice(0, 16).replace("T", " ") }]}
+            actions={
+              <ActionPanel>
+                <Action.OpenInBrowser title="Open Speedtest Tracker" url={HEALTH_URLS.speedtest} />
+              </ActionPanel>
+            }
+          />
+        )}
         {[...(s?.errors ?? []), ...(d?.errors ?? [])].slice(0, 2).map((e, i) => (
           <List.Item key={i} icon={{ source: Icon.Warning, tintColor: Color.Red }} title={e} />
         ))}

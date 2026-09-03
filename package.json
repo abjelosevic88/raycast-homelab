@@ -132,6 +132,59 @@
         "pictures",
         "gallery"
       ]
+    },
+    {
+      "name": "audiobooks",
+      "title": "Audiobooks",
+      "subtitle": "Homelab",
+      "description": "Audiobookshelf: continue listening, browse and search",
+      "mode": "view",
+      "keywords": [
+        "abs",
+        "audiobookshelf",
+        "audiobook",
+        "podcast"
+      ]
+    },
+    {
+      "name": "calendar",
+      "title": "Media Calendar",
+      "subtitle": "Homelab",
+      "description": "Upcoming movies/episodes/albums and stuck arr queues",
+      "mode": "view",
+      "keywords": [
+        "radarr",
+        "sonarr",
+        "lidarr",
+        "upcoming",
+        "releases"
+      ]
+    },
+    {
+      "name": "containers",
+      "title": "Containers",
+      "subtitle": "Homelab",
+      "description": "Komodo stacks: state and restart/start/stop",
+      "mode": "view",
+      "keywords": [
+        "komodo",
+        "docker",
+        "stack",
+        "restart"
+      ]
+    },
+    {
+      "name": "metube",
+      "title": "Send to MeTube",
+      "subtitle": "Homelab",
+      "description": "Queue a video or audio download from a URL",
+      "mode": "view",
+      "keywords": [
+        "metube",
+        "youtube",
+        "download",
+        "yt-dlp"
+      ]
     }
   ],
   "preferences": [
@@ -306,6 +359,91 @@
       "name": "immichApiKey",
       "title": "Immich API Key",
       "description": "Account Settings \u2192 API Keys",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "absUrl",
+      "title": "Audiobookshelf URL",
+      "description": "Leave empty for https://audiobooks.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "absToken",
+      "title": "Audiobookshelf API Token",
+      "description": "ABS \u2192 Settings \u2192 Users \u2192 your user \u2192 API Token",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "slskdUrl",
+      "title": "slskd URL",
+      "description": "Leave empty for https://slskd.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "slskdApiKey",
+      "title": "slskd API Key",
+      "description": "From slskd.yml web.authentication.api_keys",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "radarrApiKey",
+      "title": "Radarr API Key",
+      "description": "Settings \u2192 General",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "sonarrApiKey",
+      "title": "Sonarr API Key",
+      "description": "Settings \u2192 General",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "lidarrApiKey",
+      "title": "Lidarr API Key",
+      "description": "Settings \u2192 General",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "komodoApiKey",
+      "title": "Komodo API Key",
+      "description": "Komodo \u2192 Settings \u2192 Api Keys",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "komodoApiSecret",
+      "title": "Komodo API Secret",
+      "description": "Shown once when creating the key",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "metubeUrl",
+      "title": "MeTube URL",
+      "description": "Leave empty for https://metube.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "backrestUsername",
+      "title": "Backrest Username",
+      "description": "Default: admin",
+      "type": "textfield",
+      "required": false,
+      "default": "admin"
+    },
+    {
+      "name": "backrestPassword",
+      "title": "Backrest Password",
+      "description": "Enables the Backups row on Homelab Home",
       "type": "password",
       "required": false
     }
