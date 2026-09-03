@@ -22,8 +22,9 @@ async function ag<T>(path: string, init?: RequestInit): Promise<T> {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`AdGuard ${path} → HTTP ${res.status}`);
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  // GET endpoints return JSON; mutations answer with a bare "OK"
+  const text = (await res.text()).trim();
+  return (text.startsWith("{") || text.startsWith("[") ? JSON.parse(text) : undefined) as T;
 }
 
 export interface AdguardStats {

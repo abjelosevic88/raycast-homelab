@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
+import { Action, ActionPanel, Color, Icon, List, showToast, Toast } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
@@ -279,7 +279,16 @@ export default function Home() {
                   title={adguard.data.protectionEnabled ? "Pause Protection 10 Min" : "Resume Protection"}
                   icon={adguard.data.protectionEnabled ? Icon.Pause : Icon.Play}
                   onAction={async () => {
-                    await setProtection(!adguard.data?.protectionEnabled, adguard.data?.protectionEnabled ? 10 : undefined);
+                    const enable = !adguard.data?.protectionEnabled;
+                    try {
+                      await setProtection(enable, enable ? undefined : 10);
+                      await showToast({
+                        style: Toast.Style.Success,
+                        title: enable ? "AdGuard protection resumed" : "AdGuard paused for 10 minutes",
+                      });
+                    } catch (e) {
+                      await showToast({ style: Toast.Style.Failure, title: "AdGuard", message: String(e) });
+                    }
                     adguard.revalidate();
                   }}
                 />
