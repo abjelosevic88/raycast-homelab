@@ -8,18 +8,19 @@ interface Preferences {
 const METUBE_URL = "https://metube.bjelke.org";
 
 // destinations mirror the MeTube mounts: default dir feeds the ABS YouTube
-// library (audio), .ambients/.work feed Navidrome, .xxx is a video dir
-const FOLDERS: { value: string; title: string; kind: "audio" | "video" }[] = [
-  { value: "", title: "ABS YouTube library (audio)", kind: "audio" },
-  { value: ".ambients", title: "Music — .ambients", kind: "audio" },
-  { value: ".work", title: "Music — .work", kind: "audio" },
-  { value: ".xxx", title: ".xxx (video)", kind: "video" },
+// library, .ambients/.work feed Navidrome, .xxx is a video dir.
+// Everything defaults to opus audio; .xxx can opt into video via Quality.
+const FOLDERS: { value: string; title: string; videoOption?: boolean }[] = [
+  { value: "", title: "ABS YouTube library" },
+  { value: ".ambients", title: "Music — .ambients" },
+  { value: ".work", title: "Music — .work" },
+  { value: ".xxx", title: ".xxx", videoOption: true },
 ];
 
 export default function Metube() {
   const [url, setUrl] = useState("");
   const [folder, setFolder] = useState("");
-  const [quality, setQuality] = useState("best");
+  const [quality, setQuality] = useState("opus");
 
   useEffect(() => {
     Clipboard.readText().then((t) => {
@@ -34,7 +35,7 @@ export default function Metube() {
       await showToast({ style: Toast.Style.Failure, title: "Not a URL", message: "Paste a video link first" });
       return;
     }
-    const kind = FOLDERS.find((f) => f.value === folder)?.kind ?? "audio";
+    const wantsVideo = FOLDERS.find((f) => f.value === folder)?.videoOption && quality !== "opus";
     const toast = await showToast({ style: Toast.Style.Animated, title: "Sending to MeTube…" });
     try {
       const res = await fetch(`${base}/add`, {
@@ -44,8 +45,8 @@ export default function Metube() {
         body: JSON.stringify({
           url: url.trim(),
           // MeTube only accepts quality "best" for the opus format
-          quality: kind === "audio" ? "best" : quality,
-          format: kind === "audio" ? "opus" : "any",
+          quality: wantsVideo ? quality : "best",
+          format: wantsVideo ? "any" : "opus",
           folder,
           auto_start: true,
         }),
@@ -57,7 +58,7 @@ export default function Metube() {
       if (body.status === "error") throw new Error(body.msg ?? "unknown error");
       toast.style = Toast.Style.Success;
       toast.title = "Queued in MeTube";
-      toast.message = `${kind} → ${folder || "ABS YouTube"}`;
+      toast.message = `${wantsVideo ? `video ${quality}` : "audio (opus)"} → ${folder || "ABS YouTube"}`;
       await closeMainWindow();
     } catch (e) {
       toast.style = Toast.Style.Failure;
@@ -81,14 +82,15 @@ export default function Metube() {
           <Form.Dropdown.Item key={f.value || "default"} value={f.value} title={f.title} />
         ))}
       </Form.Dropdown>
-      {FOLDERS.find((f) => f.value === folder)?.kind === "video" && (
+      {FOLDERS.find((f) => f.value === folder)?.videoOption && (
         <Form.Dropdown id="quality" title="Quality" value={quality} onChange={setQuality}>
-          <Form.Dropdown.Item value="best" title="Best" />
-          <Form.Dropdown.Item value="1080" title="1080p" />
-          <Form.Dropdown.Item value="720" title="720p" />
+          <Form.Dropdown.Item value="opus" title="Audio (opus)" />
+          <Form.Dropdown.Item value="best" title="Video — Best" />
+          <Form.Dropdown.Item value="1080" title="Video — 1080p" />
+          <Form.Dropdown.Item value="720" title="Video — 720p" />
         </Form.Dropdown>
       )}
-      <Form.Description text="Audio destinations download opus: default feeds the ABS YouTube library, the Music ones feed Navidrome's dropboxes." />
+      <Form.Description text="Everything downloads as opus audio by default: the default feeds the ABS YouTube library, the Music ones feed Navidrome's dropboxes. Pick a video quality on .xxx to get video instead." />
     </Form>
   );
 }
