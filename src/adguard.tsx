@@ -171,10 +171,20 @@ export default function AdGuard() {
           {s.topClients.slice(0, 6).map((c) => (
             <List.Item
               key={`c-${c.name}`}
-              icon={{ source: Icon.Devices, tintColor: Color.SecondaryText }}
-              title={c.name}
+              icon={{
+                source: c.label === "docker container" ? Icon.Box : c.label ? Icon.Devices : Icon.QuestionMarkCircle,
+                tintColor: c.label && c.label !== "docker container" ? Color.Blue : Color.SecondaryText,
+              }}
+              title={c.label ?? c.name}
+              subtitle={c.label ? c.name : undefined}
               accessories={[{ text: `${fmtCount(c.count)} queries` }]}
-              actions={actions}
+              actions={
+                <ActionPanel>
+                  <Action.CopyToClipboard title="Copy IP" content={c.name} />
+                  <ProtectionActions stats={s} onDone={refresh} />
+                  <Action.OpenInBrowser title="Open AdGuard Clients" url={`${ADGUARD_URL}/#clients`} />
+                </ActionPanel>
+              }
             />
           ))}
         </List.Section>

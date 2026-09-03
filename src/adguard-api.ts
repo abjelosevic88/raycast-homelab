@@ -30,6 +30,28 @@ async function ag<T>(path: string, init?: RequestInit): Promise<T> {
 export interface Counted {
   name: string;
   count: number;
+  label?: string; // resolved client name, when AdGuard knows one
+}
+
+// Docker bridge / private ranges that never resolve to a device name
+function guessLabel(ip: string): string | undefined {
+  if (/^10\.2\d\d\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return "docker container";
+  return undefined;
+}
+
+// AdGuard resolves IPs against persistent clients, DHCP leases, rDNS, hosts
+export async function resolveClientNames(ips: string[]): Promise<Record<string, string>> {
+  if (ips.length === 0) return {};
+  const qs = ips.map((ip, i) => `ip${i}=${encodeURIComponent(ip)}`).join("&");
+  const r = await ag<Record<string, { name?: string }[]>[]>(`/control/clients/find?${qs}`);
+  const out: Record<string, string> = {};
+  for (const entry of r) {
+    for (const [ip, infos] of Object.entries(entry)) {
+      const name = infos?.[0]?.name;
+      if (name) out[ip] = name;
+    }
+  }
+  return out;
 }
 
 function counted(list?: Record<string, number>[]): Counted[] {
@@ -76,6 +98,9 @@ export async function loadAdguard(): Promise<AdguardStats> {
   ]);
   const queries = stats.num_dns_queries ?? 0;
   const blocked = stats.num_blocked_filtering ?? 0;
+  const topClients = counted(stats.top_clients);
+  const names = await resolveClientNames(topClients.map((c) => c.name)).catch(() => ({}) as Record<string, string>);
+  for (const c of topClients) c.label = names[c.name] ?? guessLabel(c.name);
   return {
     protectionEnabled: status.protection_enabled,
     disabledUntil: status.protection_disabled_duration ? Date.now() + status.protection_disabled_duration : undefined,
@@ -88,7 +113,7 @@ export async function loadAdguard(): Promise<AdguardStats> {
     avgMs: (stats.avg_processing_time ?? 0) * 1000,
     topQueried: counted(stats.top_queried_domains),
     topBlocked: counted(stats.top_blocked_domains),
-    topClients: counted(stats.top_clients),
+    topClients,
     timeUnits: stats.time_units ?? "hours",
   };
 }
