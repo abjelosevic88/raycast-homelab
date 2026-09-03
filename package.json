@@ -185,6 +185,20 @@
         "download",
         "yt-dlp"
       ]
+    },
+    {
+      "name": "disks",
+      "title": "Disk Health",
+      "subtitle": "Homelab",
+      "description": "Scrutiny SMART status for every server and NAS disk",
+      "mode": "view",
+      "keywords": [
+        "scrutiny",
+        "smart",
+        "disk",
+        "hdd",
+        "ssd"
+      ]
     }
   ],
   "preferences": [

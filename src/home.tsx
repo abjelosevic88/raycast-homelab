@@ -17,6 +17,7 @@ import Audiobooks from "./audiobooks";
 import Calendar from "./calendar";
 import Containers from "./containers";
 import Metube from "./metube";
+import Disks from "./disks";
 import { HEALTH_URLS, loadBackups, loadDiskHealth, loadSpeedtest } from "./health-api";
 import { loadKuma } from "./kuma-api";
 
@@ -37,6 +38,7 @@ const COMMANDS = [
   { name: "calendar", title: "Media Calendar", subtitle: "Upcoming releases + stuck queues (arr stack)", icon: Icon.Calendar, view: () => <Calendar /> },
   { name: "containers", title: "Containers", subtitle: "Komodo stacks — restart from Raycast", icon: Icon.Box, view: () => <Containers /> },
   { name: "metube", title: "Send to MeTube", subtitle: "Clipboard URL → video or Navidrome dropbox", icon: Icon.Link, view: () => <Metube /> },
+  { name: "disks", title: "Disk Health", subtitle: "Scrutiny SMART — every drive, both hosts", icon: Icon.HardDrive, view: () => <Disks /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [
