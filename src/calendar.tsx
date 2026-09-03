@@ -8,14 +8,14 @@ const APP_META = {
   lidarr: { label: "Music", color: Color.Green, icon: Icon.Music },
 } as const;
 
-function dayLabel(date: string): string {
+function dayHeader(date: string): string {
   const today = new Date().toISOString().slice(0, 10);
   const diff = Math.round((new Date(date).getTime() - new Date(today).getTime()) / 86400000);
-  if (diff < 0) return "Yesterday";
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Tomorrow";
-  const weekday = new Date(date).toLocaleDateString("en-US", { weekday: "short" });
-  return `${weekday} ${date.slice(5)}`;
+  const nice = new Date(date).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  if (diff < 0) return `Yesterday — ${nice}`;
+  if (diff === 0) return `Today — ${nice}`;
+  if (diff === 1) return `Tomorrow — ${nice}`;
+  return nice;
 }
 
 export default function Calendar() {
@@ -36,11 +36,10 @@ export default function Calendar() {
     return (
       <List.Item
         key={e.id}
-        icon={{ source: meta.icon, tintColor: meta.color }}
+        icon={e.poster ? { source: e.poster } : { source: meta.icon, tintColor: meta.color }}
         title={e.title}
         subtitle={e.subtitle}
         accessories={[
-          { text: dayLabel(e.date) },
           e.has
             ? { tag: { value: "downloaded", color: Color.Green } }
             : { tag: { value: meta.label, color: meta.color } },
@@ -64,10 +63,13 @@ export default function Calendar() {
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const past = data?.calendar.filter((e) => e.date < today) ?? [];
-  const todayList = data?.calendar.filter((e) => e.date === today) ?? [];
-  const upcoming = data?.calendar.filter((e) => e.date > today) ?? [];
+  // agenda view: one section per day, in date order
+  const byDay = new Map<string, CalendarEntry[]>();
+  for (const e of data?.calendar ?? []) {
+    if (!byDay.has(e.date)) byDay.set(e.date, []);
+    byDay.get(e.date)?.push(e);
+  }
+  const days = [...byDay.keys()].sort();
 
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Filter releases…">
@@ -81,9 +83,11 @@ export default function Calendar() {
       {(data?.stuck.length ?? 0) > 0 && (
         <List.Section title={`Stuck in Queue (${data?.stuck.length})`}>{data?.stuck.map(stuckItem)}</List.Section>
       )}
-      {todayList.length > 0 && <List.Section title="Today">{todayList.map(calItem)}</List.Section>}
-      {upcoming.length > 0 && <List.Section title="Upcoming (14 days)">{upcoming.map(calItem)}</List.Section>}
-      {past.length > 0 && <List.Section title="Yesterday">{past.map(calItem)}</List.Section>}
+      {days.map((day) => (
+        <List.Section key={day} title={dayHeader(day)} subtitle={day}>
+          {byDay.get(day)?.map(calItem)}
+        </List.Section>
+      ))}
       {data && data.errors.length > 0 && (
         <List.Section title="Errors">
           {data.errors.map((e, i) => (

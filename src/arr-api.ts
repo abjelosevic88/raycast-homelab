@@ -42,6 +42,16 @@ export interface CalendarEntry {
   subtitle: string;
   date: string; // YYYY-MM-DD
   has: boolean; // already downloaded
+  poster?: string;
+}
+
+interface ArrImage {
+  coverType?: string;
+  remoteUrl?: string;
+}
+
+function posterOf(images?: ArrImage[]): string | undefined {
+  return images?.find((i) => i.coverType === "poster" && i.remoteUrl)?.remoteUrl;
 }
 
 export interface StuckItem {
@@ -70,6 +80,7 @@ interface RadarrMovie {
   digitalRelease?: string;
   physicalRelease?: string;
   inCinemas?: string;
+  images?: ArrImage[];
 }
 interface SonarrEpisode {
   id: number;
@@ -78,13 +89,14 @@ interface SonarrEpisode {
   title?: string;
   airDateUtc?: string;
   hasFile?: boolean;
-  series?: { title?: string };
+  series?: { title?: string; images?: ArrImage[] };
 }
 interface LidarrAlbum {
   id: number;
   title: string;
   releaseDate?: string;
-  artist?: { artistName?: string };
+  artist?: { artistName?: string; images?: ArrImage[] };
+  images?: ArrImage[];
   statistics?: { percentOfTracks?: number };
 }
 interface QueueRecord {
@@ -118,6 +130,7 @@ export async function loadArrData(): Promise<ArrData> {
             subtitle: m.year ? String(m.year) : "movie",
             date,
             has: Boolean(m.hasFile),
+            poster: posterOf(m.images),
           });
         }
       }),
@@ -134,6 +147,7 @@ export async function loadArrData(): Promise<ArrData> {
             subtitle: `S${String(e.seasonNumber).padStart(2, "0")}E${String(e.episodeNumber).padStart(2, "0")}${e.title ? ` · ${e.title}` : ""}`,
             date: (e.airDateUtc ?? "").slice(0, 10),
             has: Boolean(e.hasFile),
+            poster: posterOf(e.series?.images),
           });
         }
       }),
@@ -150,6 +164,7 @@ export async function loadArrData(): Promise<ArrData> {
             subtitle: "album",
             date: (a.releaseDate ?? "").slice(0, 10),
             has: (a.statistics?.percentOfTracks ?? 0) >= 100,
+            poster: posterOf(a.images) ?? posterOf(a.artist?.images),
           });
         }
       }),
