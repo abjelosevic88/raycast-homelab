@@ -8,19 +8,19 @@ interface Preferences {
 const METUBE_URL = "https://metube.bjelke.org";
 
 // destinations mirror the MeTube mounts: default dir feeds the ABS YouTube
-// library, .ambients/.work feed Navidrome, .xxx is a video dir.
-// Everything defaults to opus audio; .xxx can opt into video via Quality.
-const FOLDERS: { value: string; title: string; videoOption?: boolean }[] = [
+// library (opus audio), .ambients/.work feed Navidrome (opus audio),
+// .xxx is a plain video dir.
+const FOLDERS: { value: string; title: string; video?: boolean }[] = [
   { value: "", title: "ABS YouTube library" },
   { value: ".ambients", title: "Music — .ambients" },
   { value: ".work", title: "Music — .work" },
-  { value: ".xxx", title: ".xxx", videoOption: true },
+  { value: ".xxx", title: ".xxx (video)", video: true },
 ];
 
 export default function Metube() {
   const [url, setUrl] = useState("");
   const [folder, setFolder] = useState("");
-  const [quality, setQuality] = useState("opus");
+  const [quality, setQuality] = useState("best");
 
   useEffect(() => {
     Clipboard.readText().then((t) => {
@@ -35,7 +35,7 @@ export default function Metube() {
       await showToast({ style: Toast.Style.Failure, title: "Not a URL", message: "Paste a video link first" });
       return;
     }
-    const wantsVideo = FOLDERS.find((f) => f.value === folder)?.videoOption && quality !== "opus";
+    const wantsVideo = Boolean(FOLDERS.find((f) => f.value === folder)?.video);
     const toast = await showToast({ style: Toast.Style.Animated, title: "Sending to MeTube…" });
     try {
       const res = await fetch(`${base}/add`, {
@@ -82,15 +82,14 @@ export default function Metube() {
           <Form.Dropdown.Item key={f.value || "default"} value={f.value} title={f.title} />
         ))}
       </Form.Dropdown>
-      {FOLDERS.find((f) => f.value === folder)?.videoOption && (
+      {FOLDERS.find((f) => f.value === folder)?.video && (
         <Form.Dropdown id="quality" title="Quality" value={quality} onChange={setQuality}>
-          <Form.Dropdown.Item value="opus" title="Audio (opus)" />
-          <Form.Dropdown.Item value="best" title="Video — Best" />
-          <Form.Dropdown.Item value="1080" title="Video — 1080p" />
-          <Form.Dropdown.Item value="720" title="Video — 720p" />
+          <Form.Dropdown.Item value="best" title="Best" />
+          <Form.Dropdown.Item value="1080" title="1080p" />
+          <Form.Dropdown.Item value="720" title="720p" />
         </Form.Dropdown>
       )}
-      <Form.Description text="Everything downloads as opus audio by default: the default feeds the ABS YouTube library, the Music ones feed Navidrome's dropboxes. Pick a video quality on .xxx to get video instead." />
+      <Form.Description text="Audio destinations download opus: the default feeds the ABS YouTube library, the Music ones feed Navidrome's dropboxes. .xxx downloads video." />
     </Form>
   );
 }
