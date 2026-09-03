@@ -9,11 +9,11 @@ function procItem(p: ProcessInfo, kind: "cpu" | "mem", actions: React.JSX.Elemen
       key={`${kind}-${p.pid}`}
       icon={{ source: kind === "cpu" ? Icon.Gauge : Icon.MemoryChip, tintColor: Color.SecondaryText }}
       title={p.name}
-      subtitle={p.cmd.length > 70 ? p.cmd.slice(0, 70) + "…" : p.cmd}
+      subtitle={{ value: p.cmd.length > 40 ? p.cmd.slice(0, 40) + "…" : p.cmd, tooltip: p.cmd }}
       accessories={
         kind === "cpu"
-          ? [{ text: `${p.cpu.toFixed(1)}%` }, { tag: `${fmtGiB(p.memRss)}` }]
-          : [{ text: fmtGiB(p.memRss) }, { tag: `${p.memPct.toFixed(1)}%` }]
+          ? [{ tag: `${p.cpu.toFixed(1)}%` }, { text: fmtGiB(p.memRss) }]
+          : [{ tag: fmtGiB(p.memRss) }, { text: `${p.memPct.toFixed(1)}%` }]
       }
       actions={actions}
     />
