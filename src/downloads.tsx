@@ -135,10 +135,19 @@ export default function Downloads() {
       </List.Section>
 
       {data?.slskd && (
-        <List.Section
-          title={`Soulseek — slskd${data.slskd.dlSpeed > 0 ? ` — ↓ ${fmtSpeed(data.slskd.dlSpeed)}` : ""}`}
-          subtitle={data.slskd.items.length === 0 ? "idle" : `${data.slskd.items.length} transfers`}
-        >
+        <List.Section title="Soulseek — slskd">
+          <List.Item
+            icon={{ source: Icon.LineChart, tintColor: Color.Magenta }}
+            title={data.slskd.dlSpeed > 0 ? `↓ ${fmtSpeed(data.slskd.dlSpeed)}` : "↓ 0 B/s"}
+            subtitle={data.slskd.items.length > 0 ? `${data.slskd.items.length} transfers` : "queue empty"}
+            accessories={[{ tag: { value: "live", color: Color.Green }, tooltip: "refreshes every 5s" }]}
+            actions={
+              <ActionPanel>
+                <Action.OpenInBrowser title="Open Slskd" url={DL_URLS.slskd} />
+                {common}
+              </ActionPanel>
+            }
+          />
           {data.slskd.items.map((i) => (
             <List.Item
               key={i.id}
