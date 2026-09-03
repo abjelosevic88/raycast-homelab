@@ -25,8 +25,12 @@ export interface SubtitleFile {
   nudgedMs: number;
 }
 
-export async function listSubtitleFiles(): Promise<SubtitleFile[]> {
-  const res = await fetch(`${subsyncBase()}/nudge/files`, { signal: AbortSignal.timeout(20000) });
+export async function listSubtitleFiles(opts: { q?: string; pinned?: boolean; limit?: number } = {}): Promise<SubtitleFile[]> {
+  const qs = new URLSearchParams();
+  if (opts.q) qs.set("q", opts.q);
+  if (opts.pinned) qs.set("pinned", "1");
+  if (opts.limit) qs.set("limit", String(opts.limit));
+  const res = await fetch(`${subsyncBase()}/nudge/files${qs.size ? `?${qs}` : ""}`, { signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error(`nudge/files → HTTP ${res.status}`);
   const raw = (await res.json()) as { path: string; name: string; rel: string; lang: string; pinned: boolean; nudged_ms: number }[];
   return raw.map((f) => ({ path: f.path, name: f.name, rel: f.rel, lang: f.lang, pinned: f.pinned, nudgedMs: f.nudged_ms }));

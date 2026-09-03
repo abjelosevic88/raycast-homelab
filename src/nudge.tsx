@@ -52,7 +52,14 @@ function CustomNudge(props: { file: SubtitleFile; onDone: (ms: number) => Promis
 }
 
 export default function Nudge() {
-  const { data, isLoading, revalidate, mutate } = useCachedPromise(listSubtitleFiles, [], { keepPreviousData: true });
+  const [query, setQuery] = useState("");
+  const MAX_ROWS = 10;
+  // server-side search: pinned files when idle, otherwise the first 10 matches
+  const { data, isLoading, revalidate, mutate } = useCachedPromise(
+    (q: string) => (q.trim() ? listSubtitleFiles({ q: q.trim(), limit: MAX_ROWS }) : listSubtitleFiles({ pinned: true, limit: 50 })),
+    [query],
+    { keepPreviousData: true },
+  );
 
   // update the row locally; the server patches its own cache, so no slow refetch is needed
   function patchLocal(path: string, change: { pinned?: boolean; deltaMs?: number }) {
@@ -107,23 +114,10 @@ export default function Nudge() {
     }
   }
 
-  const [query, setQuery] = useState("");
   const files = data ?? [];
-  const pinned = files.filter((f) => f.pinned);
-
-  // Rendering all 1,278 rows (each with a full action panel) blows the worker's
-  // heap, so the library section only materialises rows matching the query.
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const MAX_ROWS = 80;
-  const matches =
-    tokens.length === 0
-      ? []
-      : files.filter((f) => {
-          if (f.pinned) return false;
-          const hay = f.rel.toLowerCase();
-          return tokens.every((t) => hay.includes(t));
-        });
-  const rest = matches.slice(0, MAX_ROWS);
+  const searching = query.trim().length > 0;
+  const pinned = searching ? files.filter((f) => f.pinned) : files;
+  const rest = searching ? files.filter((f) => !f.pinned) : [];
 
   function row(f: SubtitleFile) {
     const folder = f.rel.split("/").slice(0, -1).join("/");
@@ -176,22 +170,20 @@ export default function Nudge() {
       filtering={false}
       searchText={query}
       onSearchTextChange={setQuery}
-      searchBarPlaceholder={`Search ${files.length} subtitle files… e.g. walking dead s05e01 sr`}
+      throttle
+      searchBarPlaceholder="Search subtitle files… e.g. walking dead s05e01 sr"
     >
       {pinned.length > 0 && <List.Section title={`Pinned (${pinned.length})`}>{pinned.map(row)}</List.Section>}
-      {tokens.length === 0 ? (
+      {!searching ? (
         <List.Section title="Library">
           <List.Item
             icon={{ source: Icon.MagnifyingGlass, tintColor: Color.SecondaryText }}
-            title={`Type to search ${files.length - pinned.length} subtitle files`}
+            title="Type to search the subtitle library"
             subtitle="words match anywhere in the path — e.g. walking dead s05 sr"
           />
         </List.Section>
       ) : (
-        <List.Section
-          title={`Matches (${matches.length})`}
-          subtitle={matches.length > MAX_ROWS ? `showing first ${MAX_ROWS} — narrow the search` : undefined}
-        >
+        <List.Section title={rest.length >= MAX_ROWS ? `First ${MAX_ROWS} matches — narrow the search` : `Matches (${rest.length})`}>
           {rest.map(row)}
         </List.Section>
       )}
