@@ -27,27 +27,132 @@ async function ag<T>(path: string, init?: RequestInit): Promise<T> {
   return (text.startsWith("{") || text.startsWith("[") ? JSON.parse(text) : undefined) as T;
 }
 
+export interface Counted {
+  name: string;
+  count: number;
+}
+
+function counted(list?: Record<string, number>[]): Counted[] {
+  return (list ?? []).map((o) => {
+    const [name, count] = Object.entries(o)[0] ?? ["?", 0];
+    return { name, count };
+  });
+}
+
 export interface AdguardStats {
   protectionEnabled: boolean;
+  disabledUntil?: number; // unix ms
+  version: string;
+  dnsAddresses: string[];
   queries: number;
   blocked: number;
   blockedPct: number;
+  safeBrowsing: number;
   avgMs: number;
+  topQueried: Counted[];
+  topBlocked: Counted[];
+  topClients: Counted[];
+  timeUnits: string;
 }
 
 export async function loadAdguard(): Promise<AdguardStats> {
   const [status, stats] = await Promise.all([
-    ag<{ protection_enabled: boolean }>("/control/status"),
-    ag<{ num_dns_queries: number; num_blocked_filtering: number; avg_processing_time: number }>("/control/stats"),
+    ag<{
+      protection_enabled: boolean;
+      protection_disabled_duration?: number;
+      version?: string;
+      dns_addresses?: string[];
+    }>("/control/status"),
+    ag<{
+      num_dns_queries: number;
+      num_blocked_filtering: number;
+      num_replaced_safebrowsing?: number;
+      avg_processing_time: number;
+      top_queried_domains?: Record<string, number>[];
+      top_blocked_domains?: Record<string, number>[];
+      top_clients?: Record<string, number>[];
+      time_units?: string;
+    }>("/control/stats"),
   ]);
   const queries = stats.num_dns_queries ?? 0;
   const blocked = stats.num_blocked_filtering ?? 0;
   return {
     protectionEnabled: status.protection_enabled,
+    disabledUntil: status.protection_disabled_duration ? Date.now() + status.protection_disabled_duration : undefined,
+    version: status.version ?? "",
+    dnsAddresses: status.dns_addresses ?? [],
     queries,
     blocked,
     blockedPct: queries > 0 ? (blocked / queries) * 100 : 0,
+    safeBrowsing: stats.num_replaced_safebrowsing ?? 0,
     avgMs: (stats.avg_processing_time ?? 0) * 1000,
+    topQueried: counted(stats.top_queried_domains),
+    topBlocked: counted(stats.top_blocked_domains),
+    topClients: counted(stats.top_clients),
+    timeUnits: stats.time_units ?? "hours",
+  };
+}
+
+export interface QueryLogEntry {
+  time: string;
+  domain: string;
+  type: string;
+  client: string;
+  clientName?: string;
+  reason: string;
+  blocked: boolean;
+  elapsedMs: number;
+  rule?: string;
+}
+
+export async function loadQueryLog(limit = 40, onlyBlocked = false): Promise<QueryLogEntry[]> {
+  const qs = `limit=${limit}${onlyBlocked ? "&response_status=blocked" : ""}`;
+  const r = await ag<{
+    data: {
+      time: string;
+      question: { name: string; type: string };
+      client: string;
+      client_info?: { name?: string };
+      reason: string;
+      elapsedMs: string | number;
+      rule?: string;
+    }[];
+  }>(`/control/querylog?${qs}`);
+  return r.data.map((e) => ({
+    time: e.time,
+    domain: e.question.name,
+    type: e.question.type,
+    client: e.client,
+    clientName: e.client_info?.name || undefined,
+    reason: e.reason,
+    blocked: e.reason.startsWith("Filtered") && e.reason !== "FilteredSafeSearch",
+    elapsedMs: Number(e.elapsedMs),
+    rule: e.rule || undefined,
+  }));
+}
+
+export interface FilterInfo {
+  name: string;
+  rules: number;
+  enabled: boolean;
+  lastUpdated?: string;
+}
+
+export async function loadFilters(): Promise<{ filters: FilterInfo[]; userRules: number; totalRules: number }> {
+  const r = await ag<{
+    filters?: { name: string; rules_count: number; enabled: boolean; last_updated?: string }[];
+    user_rules?: string[];
+  }>("/control/filtering/status");
+  const filters = (r.filters ?? []).map((f) => ({
+    name: f.name,
+    rules: f.rules_count,
+    enabled: f.enabled,
+    lastUpdated: f.last_updated?.slice(0, 10),
+  }));
+  return {
+    filters,
+    userRules: (r.user_rules ?? []).filter((x) => x.trim() && !x.startsWith("#")).length,
+    totalRules: filters.filter((f) => f.enabled).reduce((s, f) => s + f.rules, 0),
   };
 }
 
@@ -56,4 +161,8 @@ export async function setProtection(enabled: boolean, snoozeMinutes?: number): P
     method: "POST",
     body: JSON.stringify({ enabled, ...(snoozeMinutes ? { duration: snoozeMinutes * 60 * 1000 } : {}) }),
   });
+}
+
+export function fmtCount(n: number): string {
+  return n.toLocaleString("en-US");
 }

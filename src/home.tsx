@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Icon, List, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
@@ -29,7 +29,8 @@ import { hasJellyfinKey, itemLabel, JELLYFIN_URL, loadSessions } from "./jellyfi
 import { loadSubsyncStatus } from "./subtitles-api";
 import { loadMonthSpend, loadSubscriptions } from "./money-api";
 import { hasImmichKey, loadTodayMemories } from "./immich-api";
-import { ADGUARD_URL, hasAdguardCreds, loadAdguard, setProtection } from "./adguard-api";
+import { ADGUARD_URL, hasAdguardCreds, loadAdguard } from "./adguard-api";
+import AdGuard, { ProtectionActions } from "./adguard";
 
 // slower than the child views: Home keeps polling while a pushed view is open
 const POLL_MS = 20000;
@@ -62,6 +63,7 @@ const COMMANDS = [
   { name: "subtitles", title: "Subtitles", subtitle: "Sync queue + Bazarr wanted list", icon: Icon.Text, view: () => <Subtitles /> },
   { name: "bills", title: "Upcoming Bills", subtitle: "Month spend + subscriptions due", icon: Icon.CreditCard, view: () => <Bills /> },
   { name: "indexers", title: "Search Indexers", subtitle: "Prowlarr — search everything, grab directly", icon: Icon.MagnifyingGlass, view: () => <Indexers /> },
+  { name: "adguard", title: "AdGuard Home", subtitle: "DNS dashboard — toggle, stats, blocklists", icon: Icon.Shield, view: () => <AdGuard /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [
@@ -275,23 +277,8 @@ export default function Home() {
             accessories={[{ text: `${adguard.data.avgMs.toFixed(0)} ms avg` }]}
             actions={
               <ActionPanel>
-                <Action
-                  title={adguard.data.protectionEnabled ? "Pause Protection 10 Min" : "Resume Protection"}
-                  icon={adguard.data.protectionEnabled ? Icon.Pause : Icon.Play}
-                  onAction={async () => {
-                    const enable = !adguard.data?.protectionEnabled;
-                    try {
-                      await setProtection(enable, enable ? undefined : 10);
-                      await showToast({
-                        style: Toast.Style.Success,
-                        title: enable ? "AdGuard protection resumed" : "AdGuard paused for 10 minutes",
-                      });
-                    } catch (e) {
-                      await showToast({ style: Toast.Style.Failure, title: "AdGuard", message: String(e) });
-                    }
-                    adguard.revalidate();
-                  }}
-                />
+                <Action.Push title="Open AdGuard Dashboard" icon={Icon.Shield} target={<AdGuard />} />
+                <ProtectionActions stats={adguard.data} onDone={adguard.revalidate} />
                 <Action.OpenInBrowser title="Open AdGuard Home" url={ADGUARD_URL} />
               </ActionPanel>
             }

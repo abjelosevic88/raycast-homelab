@@ -251,6 +251,19 @@
         "grab",
         "search"
       ]
+    },
+    {
+      "name": "adguard",
+      "title": "AdGuard Home",
+      "subtitle": "Homelab",
+      "description": "DNS dashboard: protection toggle, stats, top blocked, recent log, blocklists",
+      "mode": "view",
+      "keywords": [
+        "adguard",
+        "dns",
+        "blocklist",
+        "ads"
+      ]
     }
   ],
   "preferences": [
