@@ -52,16 +52,28 @@ function CustomNudge(props: { file: SubtitleFile; onDone: (ms: number) => Promis
 }
 
 export default function Nudge() {
-  const { data, isLoading, revalidate } = useCachedPromise(listSubtitleFiles, [], { keepPreviousData: true });
+  const { data, isLoading, revalidate, mutate } = useCachedPromise(listSubtitleFiles, [], { keepPreviousData: true });
+
+  // update the row locally; the server patches its own cache, so no slow refetch is needed
+  function patchLocal(path: string, change: { pinned?: boolean; deltaMs?: number }) {
+    return (files: SubtitleFile[] | undefined) =>
+      (files ?? []).map((f) =>
+        f.path === path
+          ? { ...f, pinned: change.pinned ?? f.pinned, nudgedMs: f.nudgedMs + (change.deltaMs ?? 0) }
+          : f,
+      );
+  }
 
   async function apply(f: SubtitleFile, ms: number) {
     const toast = await showToast({ style: Toast.Style.Animated, title: `Nudging ${fmtMs(ms)}…` });
     try {
-      const r = await nudgeApply(f.path, ms);
+      const r = await mutate(nudgeApply(f.path, ms), {
+        optimisticUpdate: patchLocal(f.path, { pinned: true, deltaMs: ms }),
+        shouldRevalidateAfter: false,
+      });
       toast.style = Toast.Style.Success;
       toast.title = `Shifted ${fmtMs(r.ms)} · ${r.cues} cues · pinned`;
       toast.message = `net ${fmtMs(f.nudgedMs + r.ms)} — restart playback in Jellyfin to pick it up`;
-      revalidate();
     } catch (e) {
       toast.style = Toast.Style.Failure;
       toast.title = "Nudge failed";
@@ -71,9 +83,12 @@ export default function Nudge() {
 
   async function undo(f: SubtitleFile) {
     try {
-      const r = await nudgeUndo(f.path);
+      const r = await mutate(nudgeUndo(f.path), { shouldRevalidateAfter: false });
+      await mutate(Promise.resolve(), {
+        optimisticUpdate: patchLocal(f.path, { deltaMs: r.restored_ms }),
+        shouldRevalidateAfter: false,
+      });
       await showToast({ style: Toast.Style.Success, title: `Undid last nudge (${fmtMs(r.restored_ms)})` });
-      revalidate();
     } catch (e) {
       await showToast({ style: Toast.Style.Failure, title: "Undo failed", message: String(e instanceof Error ? e.message : e) });
     }
@@ -82,9 +97,11 @@ export default function Nudge() {
   async function unpin(f: SubtitleFile) {
     if (!(await confirmAlert({ title: `Unpin ${f.name}?`, message: "The nightly sync will manage this file again and may re-time it." }))) return;
     try {
-      await nudgeUnpin(f.path);
+      await mutate(nudgeUnpin(f.path), {
+        optimisticUpdate: patchLocal(f.path, { pinned: false }),
+        shouldRevalidateAfter: false,
+      });
       await showToast({ style: Toast.Style.Success, title: "Unpinned — nightly sync will manage it again" });
-      revalidate();
     } catch (e) {
       await showToast({ style: Toast.Style.Failure, title: "Unpin failed", message: String(e instanceof Error ? e.message : e) });
     }
