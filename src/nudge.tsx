@@ -107,9 +107,23 @@ export default function Nudge() {
     }
   }
 
+  const [query, setQuery] = useState("");
   const files = data ?? [];
   const pinned = files.filter((f) => f.pinned);
-  const rest = files.filter((f) => !f.pinned);
+
+  // Rendering all 1,278 rows (each with a full action panel) blows the worker's
+  // heap, so the library section only materialises rows matching the query.
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const MAX_ROWS = 80;
+  const matches =
+    tokens.length === 0
+      ? []
+      : files.filter((f) => {
+          if (f.pinned) return false;
+          const hay = f.rel.toLowerCase();
+          return tokens.every((t) => hay.includes(t));
+        });
+  const rest = matches.slice(0, MAX_ROWS);
 
   function row(f: SubtitleFile) {
     const folder = f.rel.split("/").slice(0, -1).join("/");
@@ -157,9 +171,30 @@ export default function Nudge() {
   }
 
   return (
-    <List isLoading={isLoading} searchBarPlaceholder={`Filter ${files.length} subtitle files… e.g. walking dead s05e01 sr`}>
+    <List
+      isLoading={isLoading}
+      filtering={false}
+      searchText={query}
+      onSearchTextChange={setQuery}
+      searchBarPlaceholder={`Search ${files.length} subtitle files… e.g. walking dead s05e01 sr`}
+    >
       {pinned.length > 0 && <List.Section title={`Pinned (${pinned.length})`}>{pinned.map(row)}</List.Section>}
-      <List.Section title={`Library (${rest.length})`}>{rest.map(row)}</List.Section>
+      {tokens.length === 0 ? (
+        <List.Section title="Library">
+          <List.Item
+            icon={{ source: Icon.MagnifyingGlass, tintColor: Color.SecondaryText }}
+            title={`Type to search ${files.length - pinned.length} subtitle files`}
+            subtitle="words match anywhere in the path — e.g. walking dead s05 sr"
+          />
+        </List.Section>
+      ) : (
+        <List.Section
+          title={`Matches (${matches.length})`}
+          subtitle={matches.length > MAX_ROWS ? `showing first ${MAX_ROWS} — narrow the search` : undefined}
+        >
+          {rest.map(row)}
+        </List.Section>
+      )}
     </List>
   );
 }
