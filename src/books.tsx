@@ -63,10 +63,12 @@ function BookTile(props: { book: Book }) {
       subtitle={[b.authors.join(", "), b.year, b.formats.map((f) => f.format.toUpperCase()).join("/")].filter(Boolean).join(" · ")}
       actions={
         <ActionPanel>
+          <Action.OpenInBrowser title="Open in Calibre-Web" url={bookWebUrl(b.id)} />
           {preferred && (
             <Action
               title={`Send to Kindle (${preferred.format.toUpperCase()})`}
               icon={Icon.Envelope}
+              shortcut={{ modifiers: ["cmd"], key: "e" }}
               onAction={() => kindle(preferred)}
             />
           )}
@@ -82,7 +84,6 @@ function BookTile(props: { book: Book }) {
               <Action key={f.format} title={`${f.format.toUpperCase()} ${fmtSize(f.size)}`} onAction={() => download(f)} />
             ))}
           </ActionPanel.Submenu>
-          <Action.OpenInBrowser title="Open in Calibre-Web" url={bookWebUrl(b.id)} shortcut={Keyboard.Shortcut.Common.Open} />
           <Action.CopyToClipboard title="Copy Author – Title" content={`${b.authors.join(", ")} - ${b.title}`} shortcut={Keyboard.Shortcut.Common.Copy} />
         </ActionPanel>
       }
