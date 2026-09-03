@@ -132,6 +132,48 @@ interface TrueNasPool {
   healthy: boolean;
 }
 
+export interface ProcessInfo {
+  pid: number;
+  name: string;
+  cmd: string;
+  cpu: number; // percent
+  memRss: number; // bytes
+  memPct: number;
+}
+
+export interface TopProcesses {
+  topCpu: ProcessInfo[];
+  topMem: ProcessInfo[];
+}
+
+interface GlancesProcess {
+  pid: number;
+  name: string;
+  cmdline?: string[] | string;
+  cpu_percent?: number | string;
+  memory_percent?: number;
+  memory_info?: { rss?: number };
+}
+
+// separate from loadStats: the processlist payload is ~1 MB, only the Stats view wants it
+export async function loadTopProcesses(limit = 5): Promise<TopProcesses> {
+  const prefs = getPreferenceValues<Preferences>();
+  const g = resolveUrl(prefs.glancesUrl, URLS.glances);
+  const raw = await getJson<GlancesProcess[]>(`${g}/api/4/processlist`);
+  const procs: ProcessInfo[] = raw.map((p) => ({
+    pid: p.pid,
+    name: p.name,
+    cmd: Array.isArray(p.cmdline) ? p.cmdline.join(" ") : (p.cmdline ?? ""),
+    cpu: typeof p.cpu_percent === "number" ? p.cpu_percent : 0,
+    memRss: p.memory_info?.rss ?? 0,
+    memPct: p.memory_percent ?? 0,
+  }));
+  return {
+    topCpu: [...procs].sort((a, b) => b.cpu - a.cpu).slice(0, limit),
+    topMem: [...procs].sort((a, b) => b.memRss - a.memRss).slice(0, limit),
+  };
+}
+
 export async function loadStats(): Promise<HomelabStats> {
   const prefs = getPreferenceValues<Preferences>();
   const g = resolveUrl(prefs.glancesUrl, URLS.glances);

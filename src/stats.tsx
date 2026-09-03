@@ -1,6 +1,24 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
-import { fmtDisk, fmtGiB, loadStats, TempReading, URLS } from "./api";
+import { useEffect } from "react";
+import { fmtDisk, fmtGiB, loadStats, loadTopProcesses, ProcessInfo, TempReading, URLS } from "./api";
+
+function procItem(p: ProcessInfo, kind: "cpu" | "mem", actions: React.JSX.Element) {
+  return (
+    <List.Item
+      key={`${kind}-${p.pid}`}
+      icon={{ source: kind === "cpu" ? Icon.Gauge : Icon.MemoryChip, tintColor: Color.SecondaryText }}
+      title={p.name}
+      subtitle={p.cmd.length > 70 ? p.cmd.slice(0, 70) + "…" : p.cmd}
+      accessories={
+        kind === "cpu"
+          ? [{ text: `${p.cpu.toFixed(1)}%` }, { tag: `${fmtGiB(p.memRss)}` }]
+          : [{ text: fmtGiB(p.memRss) }, { tag: `${p.memPct.toFixed(1)}%` }]
+      }
+      actions={actions}
+    />
+  );
+}
 
 function usageColor(percent: number): Color {
   if (percent >= 90) return Color.Red;
@@ -32,7 +50,17 @@ function CommonActions(props: { onRefresh: () => void }) {
 
 export default function Stats() {
   const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], { keepPreviousData: true });
-  const actions = <CommonActions onRefresh={revalidate} />;
+  const procs = useCachedPromise(loadTopProcesses, [], { keepPreviousData: true });
+  const refreshAll = () => {
+    revalidate();
+    procs.revalidate();
+  };
+  useEffect(() => {
+    const t = setInterval(refreshAll, 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const actions = <CommonActions onRefresh={refreshAll} />;
 
   const rootFs = data?.fs.find((f) => f.mountPoint === "/");
   const storageFs = data?.fs.find((f) => f.mountPoint === "/mnt/storage");
@@ -40,7 +68,7 @@ export default function Stats() {
   const storageTemp = data?.temps?.server.disks.find((d) => d.name === "/mnt/storage");
 
   return (
-    <List isLoading={isLoading}>
+    <List isLoading={isLoading || procs.isLoading}>
       <List.Section title="Server">
         {data?.cpu && (
           <List.Item
@@ -122,6 +150,13 @@ export default function Stats() {
             actions={actions}
           />
         )}
+      </List.Section>
+
+      <List.Section title="Top CPU">
+        {procs.data?.topCpu.map((p) => procItem(p, "cpu", actions))}
+      </List.Section>
+      <List.Section title="Top Memory">
+        {procs.data?.topMem.map((p) => procItem(p, "mem", actions))}
       </List.Section>
 
       {data && data.errors.length > 0 && (
