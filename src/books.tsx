@@ -5,7 +5,6 @@ import {
   Book,
   BookFormat,
   bookWebUrl,
-  CALIBRE_URL,
   downloadBook,
   hasCalibreCreds,
   newBooks,
