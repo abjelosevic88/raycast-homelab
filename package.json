@@ -264,6 +264,20 @@
         "blocklist",
         "ads"
       ]
+    },
+    {
+      "name": "books",
+      "title": "Ebooks",
+      "subtitle": "Homelab",
+      "description": "Calibre-Web: search the library, send to Kindle, download",
+      "mode": "view",
+      "keywords": [
+        "calibre",
+        "ebook",
+        "kindle",
+        "book",
+        "epub"
+      ]
     }
   ],
   "preferences": [
@@ -581,11 +595,34 @@
       "description": "Enables the AdGuard row on Homelab Home",
       "type": "password",
       "required": false
+    },
+    {
+      "name": "calibreUrl",
+      "title": "Calibre-Web URL",
+      "description": "Leave empty for https://reader.bjelke.org",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "calibreUser",
+      "title": "Calibre-Web Username",
+      "description": "Default: admin",
+      "type": "textfield",
+      "required": false,
+      "default": "admin"
+    },
+    {
+      "name": "calibrePassword",
+      "title": "Calibre-Web Password",
+      "description": "Used for OPDS (basic auth) and the Send-to-Kindle web session",
+      "type": "password",
+      "required": false
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.88.4",
-    "@raycast/utils": "^1.18.1"
+    "@raycast/utils": "^1.18.1",
+    "fast-xml-parser": "^5.11.1"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^2.2.0",
