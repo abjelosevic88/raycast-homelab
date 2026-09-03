@@ -186,6 +186,7 @@ export default function Home() {
             }
             actions={
               <ActionPanel>
+                <Action.Push title="Open Disk Health" icon={Icon.HardDrive} target={<Disks />} />
                 <Action.OpenInBrowser title="Open Scrutiny" url={HEALTH_URLS.scrutiny} />
               </ActionPanel>
             }
