@@ -40,7 +40,7 @@ export default function Downloads() {
         shortcut={Keyboard.Shortcut.Common.Refresh}
         onAction={revalidate}
       />
-      <Action.OpenInBrowser title="Open Qbittorrent" url={DL_URLS.qbit} shortcut={{ modifiers: ["cmd"], key: "q" }} />
+      <Action.OpenInBrowser title="Open Qbittorrent" url={DL_URLS.qbit} shortcut={{ modifiers: ["cmd", "shift"], key: "q" }} />
       <Action.OpenInBrowser title="Open Sabnzbd" url={DL_URLS.sab} shortcut={Keyboard.Shortcut.Common.Save} />
     </>
   );
