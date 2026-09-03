@@ -20,7 +20,7 @@ import Metube from "./metube";
 import Disks from "./disks";
 import Jellyfin from "./jellyfin";
 import Subtitles from "./subtitles";
-import Bills from "./bills";
+import Bills, { BillsList, MonthTransactions } from "./bills";
 import Indexers from "./indexers";
 import { MemoryGrid } from "./photos";
 import { HEALTH_URLS, loadBackups, loadDiskHealth, loadSpeedtest } from "./health-api";
@@ -244,6 +244,8 @@ export default function Home() {
             actions={
               <ActionPanel>
                 <Action.Push title="Open Upcoming Bills" icon={Icon.CreditCard} target={<Bills />} />
+                <Action.Push title="This Month's Transactions" icon={Icon.List} target={<MonthTransactions />} />
+                <Action.Push title="All Subscriptions & Bills" icon={Icon.Calendar} target={<BillsList />} />
               </ActionPanel>
             }
           />
