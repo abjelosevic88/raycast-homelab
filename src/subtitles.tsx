@@ -1,6 +1,7 @@
 import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { BAZARR_URL, hasBazarrKey, loadSubsyncStatus, loadWanted, WantedItem } from "./subtitles-api";
+import Nudge from "./nudge";
 
 export default function Subtitles() {
   const sync = useCachedPromise(loadSubsyncStatus, [], { keepPreviousData: true });
@@ -11,6 +12,7 @@ export default function Subtitles() {
 
   const actions = (
     <ActionPanel>
+      <Action.Push title="Nudge a Subtitle…" icon={Icon.Text} target={<Nudge />} />
       <Action.OpenInBrowser title="Open Bazarr" url={BAZARR_URL} />
       <Action
         title="Refresh"

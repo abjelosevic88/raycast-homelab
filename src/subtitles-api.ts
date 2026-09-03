@@ -6,8 +6,53 @@ interface Preferences {
 }
 
 export const BAZARR_URL = "https://bazarr.bjelke.org";
-const SUBSYNC_URL = "http://abjelosevic-home-server.tail0c02cf.ts.net:8150";
+export const SUBSYNC_URL = "https://subtitles.bjelke.org";
 const TIMEOUT_MS = 10000;
+
+function subsyncBase(): string {
+  const p = getPreferenceValues<Preferences>();
+  return (p.subsyncUrl || SUBSYNC_URL).replace(/\/+$/, "");
+}
+
+// ---------- manual ±ms nudges (the /nudge page of sync-status-server) ----------
+
+export interface SubtitleFile {
+  path: string;
+  name: string;
+  rel: string; // relative to ~/media, e.g. "movies/28 Years Later (2025)/….sr.srt"
+  lang: string;
+  pinned: boolean;
+  nudgedMs: number;
+}
+
+export async function listSubtitleFiles(): Promise<SubtitleFile[]> {
+  const res = await fetch(`${subsyncBase()}/nudge/files`, { signal: AbortSignal.timeout(20000) });
+  if (!res.ok) throw new Error(`nudge/files → HTTP ${res.status}`);
+  const raw = (await res.json()) as { path: string; name: string; rel: string; lang: string; pinned: boolean; nudged_ms: number }[];
+  return raw.map((f) => ({ path: f.path, name: f.name, rel: f.rel, lang: f.lang, pinned: f.pinned, nudgedMs: f.nudged_ms }));
+}
+
+async function nudgePost<T>(route: "apply" | "undo" | "unpin", body: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`${subsyncBase()}/nudge/${route}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30000),
+  });
+  const data = (await res.json()) as T & { ok?: boolean; error?: string };
+  if (!res.ok || data.ok === false) throw new Error(data.error ?? `nudge/${route} → HTTP ${res.status}`);
+  return data;
+}
+
+export function nudgeApply(path: string, ms: number) {
+  return nudgePost<{ cues: number; ms: number; pinned: boolean }>("apply", { path, ms });
+}
+export function nudgeUndo(path: string) {
+  return nudgePost<{ restored_ms: number }>("undo", { path });
+}
+export function nudgeUnpin(path: string) {
+  return nudgePost<{ ok: boolean }>("unpin", { path });
+}
 
 export interface SubsyncStatus {
   status: string; // idle | running…
@@ -18,9 +63,7 @@ export interface SubsyncStatus {
 }
 
 export async function loadSubsyncStatus(): Promise<SubsyncStatus> {
-  const p = getPreferenceValues<Preferences>();
-  const url = (p.subsyncUrl || SUBSYNC_URL).replace(/\/+$/, "");
-  const res = await fetch(`${url}/`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const res = await fetch(`${subsyncBase()}/`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!res.ok) throw new Error(`subsync status → HTTP ${res.status}`);
   return (await res.json()) as SubsyncStatus;
 }

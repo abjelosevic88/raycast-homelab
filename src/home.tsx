@@ -23,6 +23,7 @@ import Subtitles from "./subtitles";
 import Bills, { BillsList, MonthTransactions } from "./bills";
 import Indexers from "./indexers";
 import Books from "./books";
+import Nudge from "./nudge";
 import { MemoryGrid } from "./photos";
 import { HEALTH_URLS, loadBackups, loadDiskHealth, loadSpeedtest } from "./health-api";
 import { loadKuma } from "./kuma-api";
@@ -66,6 +67,7 @@ const COMMANDS = [
   { name: "indexers", title: "Search Indexers", subtitle: "Prowlarr — search everything, grab directly", icon: Icon.MagnifyingGlass, view: () => <Indexers /> },
   { name: "adguard", title: "AdGuard Home", subtitle: "DNS dashboard — toggle, stats, blocklists", icon: Icon.Shield, view: () => <AdGuard /> },
   { name: "books", title: "Ebooks", subtitle: "Calibre-Web — search, Kindle, download", icon: Icon.Book, view: () => <Books /> },
+  { name: "nudge", title: "Nudge Subtitles", subtitle: "±ms shift for one .srt, undo, unpin", icon: Icon.Text, view: () => <Nudge /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [

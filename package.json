@@ -278,6 +278,20 @@
         "book",
         "epub"
       ]
+    },
+    {
+      "name": "nudge",
+      "title": "Nudge Subtitles",
+      "subtitle": "Homelab",
+      "description": "Shift a subtitle file by \u00b1ms (pins it against the nightly sync), undo, unpin",
+      "mode": "view",
+      "keywords": [
+        "subtitle",
+        "nudge",
+        "sync",
+        "offset",
+        "srt"
+      ]
     }
   ],
   "preferences": [

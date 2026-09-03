@@ -68,7 +68,7 @@ function BookTile(props: { book: Book }) {
             <Action
               title={`Send to Kindle (${preferred.format.toUpperCase()})`}
               icon={Icon.Envelope}
-              shortcut={{ modifiers: ["cmd"], key: "e" }}
+              shortcut={Keyboard.Shortcut.Common.Edit}
               onAction={() => kindle(preferred)}
             />
           )}
