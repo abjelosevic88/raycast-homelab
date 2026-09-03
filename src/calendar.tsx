@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
+import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { ARR_URLS, CalendarEntry, configuredArrs, loadArrData, StuckItem } from "./arr-api";
 
@@ -6,6 +6,7 @@ const APP_META = {
   radarr: { label: "Movie", color: Color.Yellow, icon: Icon.FilmStrip },
   sonarr: { label: "TV", color: Color.Purple, icon: Icon.Monitor },
   lidarr: { label: "Music", color: Color.Green, icon: Icon.Music },
+  chaptarr: { label: "Book", color: Color.Orange, icon: Icon.Book },
 } as const;
 
 function dayHeader(date: string): string {
@@ -24,10 +25,11 @@ export default function Calendar() {
 
   const common = (
     <>
-      <Action title="Refresh" icon={Icon.ArrowClockwise} shortcut={{ modifiers: ["cmd"], key: "r" }} onAction={revalidate} />
+      <Action title="Refresh" icon={Icon.ArrowClockwise} shortcut={Keyboard.Shortcut.Common.Refresh} onAction={revalidate} />
       <Action.OpenInBrowser title="Open Radarr" url={ARR_URLS.radarr} />
       <Action.OpenInBrowser title="Open Sonarr" url={ARR_URLS.sonarr} />
       <Action.OpenInBrowser title="Open Lidarr" url={ARR_URLS.lidarr} />
+      <Action.OpenInBrowser title="Open Chaptarr" url={ARR_URLS.chaptarr} />
     </>
   );
 

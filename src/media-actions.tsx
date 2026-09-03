@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Icon, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Icon, showToast, Toast, Keyboard } from "@raycast/api";
 import { useState } from "react";
 import { getProfiles, requestMedia, SeasonInfo, ServiceProfiles } from "./jellyseerr-api";
 
@@ -34,7 +34,7 @@ export function ProfileSubmenu(props: { target: RequestTarget; onDone?: () => vo
     <ActionPanel.Submenu
       title="Request with Profile…"
       icon={Icon.Gear}
-      shortcut={{ modifiers: ["cmd"], key: "p" }}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "p" }}
       isLoading={profiles === null}
       onOpen={() => {
         getProfiles(props.target.mediaType)
@@ -59,11 +59,11 @@ export function ProfileSubmenu(props: { target: RequestTarget; onDone?: () => vo
 export function SeasonSubmenu(props: { target: RequestTarget; seasons: SeasonInfo[]; onDone?: () => void }) {
   if (props.target.mediaType !== "tv" || props.seasons.length === 0) return null;
   return (
-    <ActionPanel.Submenu title="Request Season…" icon={Icon.List} shortcut={{ modifiers: ["cmd"], key: "s" }}>
+    <ActionPanel.Submenu title="Request Season…" icon={Icon.List} shortcut={Keyboard.Shortcut.Common.Save}>
       {props.seasons.map((s) => (
         <Action
           key={s.seasonNumber}
-          title={`Season ${s.seasonNumber} (${s.episodeCount} episodes)`}
+          title={`Season ${s.seasonNumber} (${s.episodeCount} Episodes)`}
           icon={Icon.Play}
           onAction={() => doRequest(props.target, { seasons: [s.seasonNumber], onDone: props.onDone })}
         />

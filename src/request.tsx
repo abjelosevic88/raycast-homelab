@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Grid, Icon } from "@raycast/api";
+import { Action, ActionPanel, Color, Grid, Icon, showToast, Toast, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import {
@@ -36,7 +36,12 @@ export default function Request() {
         return { data: res.results, hasMore: res.hasMore };
       },
     [query, category, Boolean(key)],
-    { keepPreviousData: true },
+    {
+      keepPreviousData: true,
+      onError: (e) => {
+        void showToast({ style: Toast.Style.Failure, title: "Jellyseerr", message: e.message });
+      },
+    },
   );
 
   const categoryTitle = DISCOVER_CATEGORIES.find((c) => c.id === category)?.title ?? "Discover";
@@ -116,7 +121,7 @@ export default function Request() {
                   <Action.OpenInBrowser
                     title="Open in Jellyseerr"
                     url={webUrl}
-                    shortcut={{ modifiers: ["cmd"], key: "o" }}
+                    shortcut={Keyboard.Shortcut.Common.Open}
                   />
                   <Action.CopyToClipboard
                     title="Copy Title"

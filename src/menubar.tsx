@@ -2,6 +2,8 @@ import { Icon, launchCommand, LaunchType, MenuBarExtra, open } from "@raycast/ap
 import { useCachedPromise } from "@raycast/utils";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
 import { fmtSpeed, loadDownloads } from "./downloads-api";
+import { loadKuma } from "./kuma-api";
+import { loadBackups } from "./health-api";
 
 function openDownloads() {
   launchCommand({ name: "downloads", type: LaunchType.UserInitiated });
@@ -10,6 +12,23 @@ function openDownloads() {
 export default function MenuBar() {
   const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], { keepPreviousData: true });
   const { data: dl, revalidate: revalidateDl } = useCachedPromise(loadDownloads, [], { keepPreviousData: true });
+  const kuma = useCachedPromise(async () => {
+    try {
+      return await loadKuma();
+    } catch {
+      return undefined;
+    }
+  }, [], { keepPreviousData: true });
+  const backups = useCachedPromise(async () => {
+    try {
+      return await loadBackups();
+    } catch {
+      return undefined;
+    }
+  }, [], { keepPreviousData: true });
+  const downMonitors = kuma.data?.monitors.filter((m) => m.status === 0) ?? [];
+  const failedBackups = backups.data?.filter((b) => !b.ok) ?? [];
+  const alerts = downMonitors.length + failedBackups.length;
 
   const dlSpeed = (dl?.qbit?.dlSpeed ?? 0) + (dl?.sab?.speedBps ?? 0);
   const upSpeed = dl?.qbit?.upSpeed ?? 0;
@@ -24,8 +43,11 @@ export default function MenuBar() {
     data?.cpu !== undefined
       ? `${Math.round(data.cpu.percent)}%${cpuTemp !== undefined ? ` ${cpuTemp}°` : ""}`
       : undefined;
-  // just a ↓ marker while downloading — the speeds live in the dropdown
-  const title = baseTitle !== undefined && dlSpeed > 1e5 ? `${baseTitle} ↓` : baseTitle;
+  // ↓ marker while downloading, ⚠︎N when monitors are down or a backup failed
+  const title =
+    baseTitle !== undefined
+      ? `${baseTitle}${dlSpeed > 1e5 ? " ↓" : ""}${alerts > 0 ? ` ⚠︎${alerts}` : ""}`
+      : undefined;
 
   return (
     <MenuBarExtra icon={Icon.HardDrive} title={title} isLoading={isLoading} tooltip="Homelab">
@@ -82,6 +104,16 @@ export default function MenuBar() {
           />
         )}
       </MenuBarExtra.Section>
+      {alerts > 0 && (
+        <MenuBarExtra.Section title="Alerts">
+          {downMonitors.map((m) => (
+            <MenuBarExtra.Item key={`dn-${m.name}`} icon={Icon.XMarkCircle} title={`DOWN: ${m.name}`} onAction={() => open("https://kuma.bjelke.org")} />
+          ))}
+          {failedBackups.map((b) => (
+            <MenuBarExtra.Item key={`bk-${b.planId}`} icon={Icon.Warning} title={`Backup failed: ${b.planId}`} onAction={() => open("https://backrest.bjelke.org")} />
+          ))}
+        </MenuBarExtra.Section>
+      )}
       {hasActivity && (
         <MenuBarExtra.Section title="Downloads">
           <MenuBarExtra.Item

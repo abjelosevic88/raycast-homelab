@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
+import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
 import { fmtDisk, fmtGiB, loadStats, loadTopProcesses, ProcessInfo, TempReading, URLS } from "./api";
@@ -38,12 +38,12 @@ function CommonActions(props: { onRefresh: () => void }) {
       <Action
         title="Refresh"
         icon={Icon.ArrowClockwise}
-        shortcut={{ modifiers: ["cmd"], key: "r" }}
+        shortcut={Keyboard.Shortcut.Common.Refresh}
         onAction={props.onRefresh}
       />
       <Action.OpenInBrowser title="Open Homepage" url={URLS.homepage} />
       <Action.OpenInBrowser title="Open Glances" url={URLS.glances} shortcut={{ modifiers: ["cmd"], key: "g" }} />
-      <Action.OpenInBrowser title="Open TrueNAS" url={URLS.truenas} shortcut={{ modifiers: ["cmd"], key: "n" }} />
+      <Action.OpenInBrowser title="Open TrueNAS" url={URLS.truenas} shortcut={Keyboard.Shortcut.Common.New} />
     </ActionPanel>
   );
 }
@@ -58,7 +58,6 @@ export default function Stats() {
   useEffect(() => {
     const t = setInterval(refreshAll, 15000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const actions = <CommonActions onRefresh={refreshAll} />;
 

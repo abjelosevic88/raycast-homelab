@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Grid, Icon, List } from "@raycast/api";
+import { Action, ActionPanel, Color, Grid, Icon, List, showToast, Toast, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import {
@@ -64,7 +64,12 @@ export default function Music() {
       return { data: r.albums, hasMore: r.hasMore };
     },
     [query, sort, hasCreds],
-    { keepPreviousData: true },
+    {
+      keepPreviousData: true,
+      onError: (e) => {
+        void showToast({ style: Toast.Style.Failure, title: "Navidrome", message: e.message });
+      },
+    },
   );
 
   const seen = new Set<string>();
@@ -110,7 +115,7 @@ export default function Music() {
                 <Action.OpenInBrowser
                   title="Open Navidrome"
                   url={NAVIDROME_URL}
-                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                  shortcut={Keyboard.Shortcut.Common.Open}
                 />
                 <Action.CopyToClipboard
                   title="Copy Artist – Album"

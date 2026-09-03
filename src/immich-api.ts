@@ -87,6 +87,24 @@ export async function albumAssets(albumId: string): Promise<Photo[]> {
   return r.assets;
 }
 
+export interface Memory {
+  id: string;
+  year: number;
+  assets: Photo[];
+}
+
+// "On this day" memories whose show window covers today
+export async function loadTodayMemories(): Promise<Memory[]> {
+  const raw = await api<{ id: string; type: string; showAt: string; hideAt: string; data?: { year?: number }; assets: Photo[] }[]>(
+    "/api/memories",
+  );
+  const now = Date.now();
+  return raw
+    .filter((m) => m.type === "on_this_day" && new Date(m.showAt).getTime() <= now && now <= new Date(m.hideAt).getTime())
+    .map((m) => ({ id: m.id, year: m.data?.year ?? 0, assets: m.assets }))
+    .sort((a, b) => b.year - a.year);
+}
+
 export async function setFavorite(assetId: string, isFavorite: boolean): Promise<void> {
   await api(`/api/assets/${assetId}`, { method: "PUT", body: JSON.stringify({ isFavorite }) });
 }

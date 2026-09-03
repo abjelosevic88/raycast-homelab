@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Icon, List, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Color, Icon, List, showToast, Toast, Keyboard } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
 import { DL_URLS, DownloadItem, fmtSpeed, loadDownloads, qbitToggle, sabToggle } from "./downloads-api";
@@ -37,11 +37,11 @@ export default function Downloads() {
       <Action
         title="Refresh"
         icon={Icon.ArrowClockwise}
-        shortcut={{ modifiers: ["cmd"], key: "r" }}
+        shortcut={Keyboard.Shortcut.Common.Refresh}
         onAction={revalidate}
       />
       <Action.OpenInBrowser title="Open Qbittorrent" url={DL_URLS.qbit} shortcut={{ modifiers: ["cmd"], key: "q" }} />
-      <Action.OpenInBrowser title="Open Sabnzbd" url={DL_URLS.sab} shortcut={{ modifiers: ["cmd"], key: "s" }} />
+      <Action.OpenInBrowser title="Open Sabnzbd" url={DL_URLS.sab} shortcut={Keyboard.Shortcut.Common.Save} />
     </>
   );
   const commonPanel = <ActionPanel>{common}</ActionPanel>;

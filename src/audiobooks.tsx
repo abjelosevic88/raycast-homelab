@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Grid, Icon } from "@raycast/api";
+import { Action, ActionPanel, Color, Grid, Icon, showToast, Toast, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import {
@@ -24,7 +24,7 @@ function ItemTile(props: { item: AbsItem }) {
       actions={
         <ActionPanel>
           <Action.OpenInBrowser title="Open in Audiobookshelf" url={absItemWebUrl(i.id)} />
-          <Action.OpenInBrowser title="Open Audiobookshelf" url={ABS_URL} shortcut={{ modifiers: ["cmd"], key: "o" }} />
+          <Action.OpenInBrowser title="Open Audiobookshelf" url={ABS_URL} shortcut={Keyboard.Shortcut.Common.Open} />
           <Action.CopyToClipboard title="Copy Title" content={`${i.author} - ${i.title}`} shortcut={{ modifiers: ["cmd"], key: "c" }} />
         </ActionPanel>
       }
@@ -51,7 +51,12 @@ export default function Audiobooks() {
       return { data: r.items, hasMore: r.hasMore };
     },
     [activeLibrary, query, hasToken],
-    { keepPreviousData: true },
+    {
+      keepPreviousData: true,
+      onError: (e) => {
+        void showToast({ style: Toast.Style.Failure, title: "Audiobookshelf", message: e.message });
+      },
+    },
   );
 
   const seen = new Set<string>();

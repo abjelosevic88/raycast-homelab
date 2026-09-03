@@ -5,10 +5,10 @@ import {
   albumAssets,
   albumWebUrl,
   hasImmichKey,
-  IMMICH_URL,
   ImmichAlbum,
   listAlbums,
   listPhotos,
+  Memory,
   Photo,
   PHOTO_MODES,
   PhotoMode,
@@ -95,6 +95,21 @@ function PhotoItem(props: { photo: Photo; onChanged?: () => void }) {
   );
 }
 
+export function MemoryGrid(props: { memories: Memory[] }) {
+  const thisYear = new Date().getFullYear();
+  return (
+    <Grid navigationTitle="On This Day" columns={4} aspectRatio="1" fit={Grid.Fit.Fill} searchBarPlaceholder="Filter…">
+      {props.memories.map((m) => (
+        <Grid.Section key={m.id} title={`${m.year} — ${thisYear - m.year} year${thisYear - m.year === 1 ? "" : "s"} ago`}>
+          {m.assets.map((p) => (
+            <PhotoItem key={p.id} photo={p} />
+          ))}
+        </Grid.Section>
+      ))}
+    </Grid>
+  );
+}
+
 function AlbumGrid(props: { album: ImmichAlbum }) {
   const { data, isLoading, revalidate } = useCachedPromise(albumAssets, [props.album.id]);
   return (
@@ -124,7 +139,12 @@ export default function Photos() {
       return { data: r.photos, hasMore: r.hasMore };
     },
     [query, mode, hasKey],
-    { keepPreviousData: true },
+    {
+      keepPreviousData: true,
+      onError: (e) => {
+        void showToast({ style: Toast.Style.Failure, title: "Immich", message: e.message });
+      },
+    },
   );
   const albumsResult = useCachedPromise(async (m: PhotoMode, ok: boolean) => (ok && m === "albums" ? await listAlbums() : []), [
     mode,

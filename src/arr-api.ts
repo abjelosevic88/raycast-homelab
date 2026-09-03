@@ -4,29 +4,31 @@ interface Preferences {
   radarrApiKey?: string;
   sonarrApiKey?: string;
   lidarrApiKey?: string;
+  chaptarrApiKey?: string;
 }
 
 export const ARR_URLS = {
   radarr: "https://radarr.bjelke.org",
   sonarr: "https://sonarr.bjelke.org",
   lidarr: "https://lidarr.bjelke.org",
+  chaptarr: "https://chaptarr.bjelke.org",
 };
 
 const TIMEOUT_MS = 10000;
 
-type ArrApp = "radarr" | "sonarr" | "lidarr";
+type ArrApp = "radarr" | "sonarr" | "lidarr" | "chaptarr";
 
 function keyFor(app: ArrApp): string {
   const p = getPreferenceValues<Preferences>();
-  return { radarr: p.radarrApiKey, sonarr: p.sonarrApiKey, lidarr: p.lidarrApiKey }[app] ?? "";
+  return { radarr: p.radarrApiKey, sonarr: p.sonarrApiKey, lidarr: p.lidarrApiKey, chaptarr: p.chaptarrApiKey }[app] ?? "";
 }
 
 export function configuredArrs(): ArrApp[] {
-  return (["radarr", "sonarr", "lidarr"] as ArrApp[]).filter((a) => keyFor(a));
+  return (["radarr", "sonarr", "lidarr", "chaptarr"] as ArrApp[]).filter((a) => keyFor(a));
 }
 
 async function arr<T>(app: ArrApp, path: string): Promise<T> {
-  const version = app === "lidarr" ? "v1" : "v3";
+  const version = app === "lidarr" || app === "chaptarr" ? "v1" : "v3";
   const res = await fetch(`${ARR_URLS[app]}/api/${version}${path}`, {
     headers: { "X-Api-Key": keyFor(app) },
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -165,6 +167,27 @@ export async function loadArrData(): Promise<ArrData> {
             date: (a.releaseDate ?? "").slice(0, 10),
             has: (a.statistics?.percentOfTracks ?? 0) >= 100,
             poster: posterOf(a.images) ?? posterOf(a.artist?.images),
+          });
+        }
+      }),
+    );
+  }
+
+  if (apps.includes("chaptarr")) {
+    tasks.push(
+      arr<{ id: number; title: string; releaseDate?: string; author?: { authorName?: string }; images?: ArrImage[]; statistics?: { percentOfBooks?: number; bookFileCount?: number } }[]>(
+        "chaptarr",
+        `/calendar?start=${start}&end=${end}&includeAuthor=true`,
+      ).then((books) => {
+        for (const b of books) {
+          data.calendar.push({
+            id: `chaptarr-${b.id}`,
+            app: "chaptarr",
+            title: `${b.author?.authorName ? `${b.author.authorName} — ` : ""}${b.title}`,
+            subtitle: "book",
+            date: (b.releaseDate ?? "").slice(0, 10),
+            has: (b.statistics?.bookFileCount ?? 0) > 0,
+            poster: posterOf(b.images),
           });
         }
       }),

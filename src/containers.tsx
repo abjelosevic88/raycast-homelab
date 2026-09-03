@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Alert, Color, confirmAlert, getPreferenceValues, Icon, List, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Alert, Color, confirmAlert, getPreferenceValues, Icon, List, showToast, Toast, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 
 interface Preferences {
@@ -102,11 +102,11 @@ export default function Containers() {
           <ActionPanel>
             <Action title="Restart Stack" icon={Icon.ArrowClockwise} onAction={() => act(s, "RestartStack")} />
             {state !== "running" && <Action title="Start Stack" icon={Icon.Play} onAction={() => act(s, "StartStack")} />}
-            <Action.OpenInBrowser title="Open Komodo" url={KOMODO_URL} shortcut={{ modifiers: ["cmd"], key: "o" }} />
+            <Action.OpenInBrowser title="Open Komodo" url={KOMODO_URL} shortcut={Keyboard.Shortcut.Common.Open} />
             <Action
               title="Refresh"
               icon={Icon.ArrowClockwise}
-              shortcut={{ modifiers: ["cmd"], key: "r" }}
+              shortcut={Keyboard.Shortcut.Common.Refresh}
               onAction={revalidate}
             />
             <Action

@@ -7,7 +7,7 @@ import {
   Icon,
   List,
   showToast,
-  Toast,
+  Toast, Keyboard,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
@@ -149,12 +149,12 @@ export default function Requests() {
                 <Action.OpenInBrowser
                   title="Open in Jellyseerr"
                   url={webUrl}
-                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                  shortcut={Keyboard.Shortcut.Common.Open}
                 />
                 <Action
                   title="Refresh"
                   icon={Icon.ArrowClockwise}
-                  shortcut={{ modifiers: ["cmd"], key: "r" }}
+                  shortcut={Keyboard.Shortcut.Common.Refresh}
                   onAction={revalidate}
                 />
                 <Action

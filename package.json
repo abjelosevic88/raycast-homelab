@@ -199,6 +199,58 @@
         "hdd",
         "ssd"
       ]
+    },
+    {
+      "name": "jellyfin",
+      "title": "Continue Watching",
+      "subtitle": "Homelab",
+      "description": "Jellyfin: now playing, resume, next up",
+      "mode": "view",
+      "keywords": [
+        "jellyfin",
+        "watch",
+        "resume",
+        "playing"
+      ]
+    },
+    {
+      "name": "subtitles",
+      "title": "Subtitles",
+      "subtitle": "Homelab",
+      "description": "Subtitle sync queue and Bazarr wanted list",
+      "mode": "view",
+      "keywords": [
+        "bazarr",
+        "subsync",
+        "subtitles"
+      ]
+    },
+    {
+      "name": "bills",
+      "title": "Upcoming Bills",
+      "subtitle": "Homelab",
+      "description": "Firefly month spend and upcoming subscriptions",
+      "mode": "view",
+      "keywords": [
+        "firefly",
+        "subscriptions",
+        "money",
+        "bills"
+      ]
+    },
+    {
+      "name": "indexers",
+      "title": "Search Indexers",
+      "subtitle": "Homelab",
+      "description": "Prowlarr: search every indexer and grab releases",
+      "mode": "view",
+      "keywords": [
+        "prowlarr",
+        "torrent",
+        "usenet",
+        "grab",
+        "search"
+      ]
     }
   ],
   "preferences": [
@@ -460,6 +512,62 @@
       "description": "Enables the Backups row on Homelab Home",
       "type": "password",
       "required": false
+    },
+    {
+      "name": "jellyfinApiKey",
+      "title": "Jellyfin API Key",
+      "description": "Dashboard \u2192 API Keys",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "jellyfinUserId",
+      "title": "Jellyfin User ID",
+      "description": "Optional \u2014 defaults to the first admin user",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "bazarrApiKey",
+      "title": "Bazarr API Key",
+      "description": "Settings \u2192 General \u2192 Security",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "subsyncUrl",
+      "title": "Subsync Status URL",
+      "description": "Leave empty for the built-in tailnet :8150 URL",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "prowlarrApiKey",
+      "title": "Prowlarr API Key",
+      "description": "Settings \u2192 General",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "chaptarrApiKey",
+      "title": "Chaptarr API Key",
+      "description": "Settings \u2192 General (books in Media Calendar)",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "adguardUsername",
+      "title": "AdGuard Username",
+      "description": "AdGuard Home login",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "adguardPassword",
+      "title": "AdGuard Password",
+      "description": "Enables the AdGuard row on Homelab Home",
+      "type": "password",
+      "required": false
     }
   ],
   "dependencies": {
@@ -467,13 +575,18 @@
     "@raycast/utils": "^1.18.1"
   },
   "devDependencies": {
+    "@raycast/eslint-config": "^2.2.0",
     "@types/node": "^22.9.0",
     "@types/react": "^19.2.18",
+    "eslint": "^10.9.1",
     "typescript": "^5.6.3"
   },
   "scripts": {
     "dev": "ray develop",
     "build": "ray build -e dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "ray lint",
+    "lint:local": "eslint src",
+    "fix-lint": "ray lint --fix"
   }
 }

@@ -18,10 +18,29 @@ import Calendar from "./calendar";
 import Containers from "./containers";
 import Metube from "./metube";
 import Disks from "./disks";
+import Jellyfin from "./jellyfin";
+import Subtitles from "./subtitles";
+import Bills from "./bills";
+import Indexers from "./indexers";
+import { MemoryGrid } from "./photos";
 import { HEALTH_URLS, loadBackups, loadDiskHealth, loadSpeedtest } from "./health-api";
 import { loadKuma } from "./kuma-api";
+import { hasJellyfinKey, itemLabel, JELLYFIN_URL, loadSessions } from "./jellyfin-api";
+import { loadSubsyncStatus } from "./subtitles-api";
+import { loadMonthSpend, loadSubscriptions } from "./money-api";
+import { hasImmichKey, loadTodayMemories } from "./immich-api";
+import { ADGUARD_URL, hasAdguardCreds, loadAdguard, setProtection } from "./adguard-api";
 
-const POLL_MS = 10000;
+// slower than the child views: Home keeps polling while a pushed view is open
+const POLL_MS = 20000;
+
+async function quiet<T>(fn: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await fn();
+  } catch {
+    return undefined;
+  }
+}
 
 // Pushed (not launched) so Esc/Back returns here instead of the Raycast root
 const COMMANDS = [
@@ -39,6 +58,10 @@ const COMMANDS = [
   { name: "containers", title: "Containers", subtitle: "Komodo stacks — restart from Raycast", icon: Icon.Box, view: () => <Containers /> },
   { name: "metube", title: "Send to MeTube", subtitle: "Clipboard URL → video or Navidrome dropbox", icon: Icon.Link, view: () => <Metube /> },
   { name: "disks", title: "Disk Health", subtitle: "Scrutiny SMART — every drive, both hosts", icon: Icon.HardDrive, view: () => <Disks /> },
+  { name: "jellyfin", title: "Continue Watching", subtitle: "Jellyfin — now playing, resume, next up", icon: Icon.Play, view: () => <Jellyfin /> },
+  { name: "subtitles", title: "Subtitles", subtitle: "Sync queue + Bazarr wanted list", icon: Icon.Text, view: () => <Subtitles /> },
+  { name: "bills", title: "Upcoming Bills", subtitle: "Month spend + subscriptions due", icon: Icon.CreditCard, view: () => <Bills /> },
+  { name: "indexers", title: "Search Indexers", subtitle: "Prowlarr — search everything, grab directly", icon: Icon.MagnifyingGlass, view: () => <Indexers /> },
 ];
 
 const LINKS: { title: string; url: string; icon: Icon }[] = [
@@ -58,22 +81,23 @@ export default function Home() {
   const kuma = useCachedPromise(loadKuma, [], { keepPreviousData: true });
   const disks = useCachedPromise(loadDiskHealth, [], { keepPreviousData: true });
   const speed = useCachedPromise(loadSpeedtest, [], { keepPreviousData: true });
-  const backups = useCachedPromise(async () => {
-    try {
-      return await loadBackups();
-    } catch {
-      return undefined; // password not set or login failed — hide the row
-    }
-  }, [], { keepPreviousData: true });
+  const backups = useCachedPromise(() => quiet(loadBackups), [], { keepPreviousData: true });
+  const jellyfin = useCachedPromise((ok: boolean) => (ok ? quiet(loadSessions) : Promise.resolve(undefined)), [hasJellyfinKey()], { keepPreviousData: true });
+  const subsync = useCachedPromise(() => quiet(loadSubsyncStatus), [], { keepPreviousData: true });
+  const spend = useCachedPromise(() => quiet(loadMonthSpend), [], { keepPreviousData: true });
+  const subs = useCachedPromise(() => quiet(loadSubscriptions), [], { keepPreviousData: true });
+  const memories = useCachedPromise((ok: boolean) => (ok ? quiet(loadTodayMemories) : Promise.resolve(undefined)), [hasImmichKey()], { keepPreviousData: true });
+  const adguard = useCachedPromise((ok: boolean) => (ok ? quiet(loadAdguard) : Promise.resolve(undefined)), [hasAdguardCreds()], { keepPreviousData: true });
 
   useEffect(() => {
     const t = setInterval(() => {
       stats.revalidate();
       dls.revalidate();
       kuma.revalidate();
+      jellyfin.revalidate();
+      subsync.revalidate();
     }, POLL_MS);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const s = stats.data;
@@ -172,6 +196,96 @@ export default function Home() {
               />
             );
           })()}
+        {jellyfin.data && (
+          <List.Item
+            icon={{ source: Icon.Play, tintColor: jellyfin.data.length > 0 ? Color.Blue : Color.SecondaryText }}
+            title="Jellyfin"
+            subtitle={
+              jellyfin.data.length > 0
+                ? jellyfin.data
+                    .map((s) => `${s.user} ${s.paused ? "paused" : "watching"} ${s.item ? itemLabel(s.item) : "?"}`)
+                    .join(" · ")
+                : "nothing playing"
+            }
+            actions={
+              <ActionPanel>
+                <Action.Push title="Open Continue Watching" icon={Icon.Play} target={<Jellyfin />} />
+                <Action.OpenInBrowser title="Open Jellyfin" url={JELLYFIN_URL} />
+              </ActionPanel>
+            }
+          />
+        )}
+        {subsync.data && (
+          <List.Item
+            icon={{
+              source: subsync.data.status === "idle" ? Icon.Text : Icon.CircleProgress50,
+              tintColor: subsync.data.status === "idle" ? Color.SecondaryText : Color.Blue,
+            }}
+            title="Subtitles"
+            subtitle={`${subsync.data.status === "idle" ? "sync idle" : `syncing ${subsync.data.now}`} · ${subsync.data.queued} queued · ${subsync.data.missing} missing`}
+            actions={
+              <ActionPanel>
+                <Action.Push title="Open Subtitles" icon={Icon.Text} target={<Subtitles />} />
+              </ActionPanel>
+            }
+          />
+        )}
+        {(spend.data || subs.data) && (
+          <List.Item
+            icon={{ source: Icon.Coins, tintColor: Color.Yellow }}
+            title="Money"
+            subtitle={[
+              spend.data ? `spent ${spend.data.spent.toFixed(0)} ${spend.data.currency} this month` : undefined,
+              subs.data ? `next bill: ${subs.data.next}` : undefined,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            accessories={subs.data ? [{ text: `${subs.data.due30d} due in 30d` }] : []}
+            actions={
+              <ActionPanel>
+                <Action.Push title="Open Upcoming Bills" icon={Icon.CreditCard} target={<Bills />} />
+              </ActionPanel>
+            }
+          />
+        )}
+        {memories.data && memories.data.length > 0 && (
+          <List.Item
+            icon={{ source: Icon.Image, tintColor: Color.Magenta }}
+            title="On This Day"
+            subtitle={memories.data
+              .map((m) => `${m.assets.length} photo${m.assets.length === 1 ? "" : "s"} from ${m.year}`)
+              .join(" · ")}
+            actions={
+              <ActionPanel>
+                <Action.Push title="Show Memories" icon={Icon.Image} target={<MemoryGrid memories={memories.data} />} />
+              </ActionPanel>
+            }
+          />
+        )}
+        {adguard.data && (
+          <List.Item
+            icon={{
+              source: adguard.data.protectionEnabled ? Icon.Shield : Icon.Shield,
+              tintColor: adguard.data.protectionEnabled ? Color.Green : Color.Orange,
+            }}
+            title="AdGuard"
+            subtitle={`${adguard.data.protectionEnabled ? "protecting" : "PAUSED"} · ${adguard.data.blocked.toLocaleString()} blocked of ${adguard.data.queries.toLocaleString()} (${adguard.data.blockedPct.toFixed(1)}%)`}
+            accessories={[{ text: `${adguard.data.avgMs.toFixed(0)} ms avg` }]}
+            actions={
+              <ActionPanel>
+                <Action
+                  title={adguard.data.protectionEnabled ? "Pause Protection 10 Min" : "Resume Protection"}
+                  icon={adguard.data.protectionEnabled ? Icon.Pause : Icon.Play}
+                  onAction={async () => {
+                    await setProtection(!adguard.data?.protectionEnabled, adguard.data?.protectionEnabled ? 10 : undefined);
+                    adguard.revalidate();
+                  }}
+                />
+                <Action.OpenInBrowser title="Open AdGuard Home" url={ADGUARD_URL} />
+              </ActionPanel>
+            }
+          />
+        )}
         {disks.data && (
           <List.Item
             icon={{
