@@ -43,14 +43,18 @@ export default function Metube() {
         signal: AbortSignal.timeout(10000),
         body: JSON.stringify({
           url: url.trim(),
-          quality: kind === "audio" ? "audio" : quality,
+          // MeTube only accepts quality "best" for the opus format
+          quality: kind === "audio" ? "best" : quality,
           format: kind === "audio" ? "opus" : "any",
           folder,
           auto_start: true,
         }),
       });
-      const body = (await res.json()) as { status?: string; msg?: string };
-      if (!res.ok || body.status === "error") throw new Error(body.msg ?? `HTTP ${res.status}`);
+      // errors come back as plain text ("400: …"), success as JSON
+      const raw = await res.text();
+      if (!res.ok) throw new Error(raw.slice(0, 120));
+      const body = JSON.parse(raw) as { status?: string; msg?: string };
+      if (body.status === "error") throw new Error(body.msg ?? "unknown error");
       toast.style = Toast.Style.Success;
       toast.title = "Queued in MeTube";
       toast.message = `${kind} → ${folder || "ABS YouTube"}`;
