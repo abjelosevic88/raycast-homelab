@@ -10,7 +10,7 @@ import {
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { fetchError } from "./fetch-error";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AssistantData,
   convertAmount,
@@ -40,12 +40,19 @@ export default function Transaction() {
 
   const parsed = data ? parseAssistant(query, data.templates) : null;
 
-  // Keep the Assistant row selected whenever the query parses, so picking a
-  // template ("Use in Assistant") or typing a valid line leaves Enter = Add.
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  // Raycast keeps the selection on an item as long as its id survives a
+  // re-render. To land on the Assistant row (always first) after a template
+  // is picked or a typed line starts to parse, we bump an epoch that is part
+  // of every template id: the old selection disappears, Raycast selects the
+  // first item, and Enter = Add Transaction. No controlled selection, so no
+  // fight with Raycast's own selection handling.
+  const [epoch, setEpoch] = useState(0);
+  const wasParsed = useRef(false);
   useEffect(() => {
-    if (parsed) setSelectedId("assistant");
-  }, [query, Boolean(parsed)]);
+    const now = Boolean(parsed);
+    if (now && !wasParsed.current) setEpoch((e) => e + 1);
+    wasParsed.current = now;
+  }, [Boolean(parsed)]);
 
   async function create(p: ParsedInput, d: AssistantData) {
     const toast = await showToast({
@@ -124,8 +131,6 @@ export default function Transaction() {
       filtering={false}
       searchText={query}
       onSearchTextChange={setQuery}
-      selectedItemId={selectedId}
-      onSelectionChange={(id) => setSelectedId(id ?? undefined)}
       searchBarPlaceholder="template  amount(currency)  description  ±Nd — e.g. gorivo 50 full tank -1d"
     >
       {!hasToken && (
@@ -138,7 +143,6 @@ export default function Transaction() {
       {parsed && data && (
         <List.Section title="Assistant">
           <List.Item
-            id="assistant"
             icon={{ source: Icon.PlusCircle, tintColor: Color.Green }}
             {...summarize(parsed, data)}
             actions={
@@ -171,7 +175,7 @@ export default function Transaction() {
             return (
               <List.Item
                 key={t.id}
-                id={`tpl-${t.id}`}
+                id={`tpl-${t.id}-${epoch}`}
                 icon={{ source: style.icon, tintColor: style.color }}
                 title={t.name}
                 subtitle={t.description !== t.name ? t.description : undefined}
@@ -195,7 +199,10 @@ export default function Transaction() {
                     <Action
                       title="Use in Assistant"
                       icon={Icon.Pencil}
-                      onAction={() => setQuery(`${t.name} `)}
+                      onAction={() => {
+                        setQuery(`${t.name} `);
+                        setEpoch((e) => e + 1);
+                      }}
                     />
                     {t.amount !== undefined && defaults && (
                       <Action
