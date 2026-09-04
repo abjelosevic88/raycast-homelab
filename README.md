@@ -1,8 +1,8 @@
 # Homelab for Raycast
 
 Your whole homelab in one Raycast extension: server stats, downloads, media requests,
-uptime monitors, music, photos, audiobooks, ebooks, DNS, containers, backups and money.
-Twenty-three commands, one **Home** hub that ties them together, and a menu bar item.
+uptime monitors, music, photos, audiobooks, ebooks, documents, DNS, containers, backups and money.
+Twenty-four commands, one **Home** hub that ties them together, and a menu bar item.
 
 Every service is optional. Configure the ones you run, leave the rest empty, and the
 extension hides them.
@@ -50,6 +50,7 @@ extension hides them.
 | **Photos** | Immich browse, smart search, on-this-day memories |
 | **Audiobooks** | Audiobookshelf continue listening, browse, search |
 | **Ebooks** | Calibre-Web search, download, send to Kindle |
+| **Paperless Search** | Recent documents and full-text OCR search, tags and correspondent, preview, open and download |
 | **Send to MeTube** | Queue a video or audio download from the URL on your clipboard |
 | **Homelab Monitors** | Uptime Kuma: what is down right now |
 | **Notifications** | ntfy messages from the last seven days |
@@ -131,6 +132,7 @@ The env file is read once per command launch. After editing it, re-run the comma
 | Navidrome | `NAVIDROME_URL`, `NAVIDROME_USER`, `NAVIDROME_PASSWORD` | Any user. Subsonic token auth. |
 | Immich | `IMMICH_URL`, `IMMICH_API_KEY` | Account Settings → API Keys |
 | Calibre-Web | `CALIBRE_URL`, `CALIBRE_USER`, `CALIBRE_PASSWORD` | Web UI login |
+| Paperless-ngx | `PAPERLESS_URL`, `PAPERLESS_TOKEN` | Your Paperless profile → API Auth Token. The token uses your user's document permissions. |
 | MeTube | `METUBE_URL`, `METUBE_FOLDERS` | No auth. Folders: `name\|Label[\|video],…` |
 | Uptime Kuma | `KUMA_URL`, `KUMA_STATUS_SLUG` or `KUMA_API_KEY` | Status page slug needs no key. Settings → API Keys for all monitors. |
 | ntfy | `NTFY_URL`, `NTFY_TOPICS` | Comma-separated topics |
@@ -146,6 +148,20 @@ The env file is read once per command launch. After editing it, re-run the comma
 
 `.env.example` lists every key with its description. Regenerate it after changing
 preferences in `package.json` with `npm run gen:env`.
+
+### Paperless Search
+
+Set **Paperless URL** to your instance's base URL (without `/api`) and **Paperless API
+Token** to the token from your Paperless profile, or use `PAPERLESS_URL` and
+`PAPERLESS_TOKEN` in the env file. The command searches documents visible to that user.
+
+Open **Paperless Search** from Raycast or Homelab Home. An empty search shows recent
+documents; typing searches titles and OCR text, so you can find a receipt by a shop
+name or an invoice by its number. Results show tags and correspondent. **Read Document
+Text** opens OCR text in Raycast; **Preview File** opens a downloaded preview in your
+default macOS app. You can also open the document in Paperless or save its original
+file or archived PDF (when available) to Downloads. **Copy OCR Text** copies the full
+extracted text. Files larger than 100 MB can be downloaded through Paperless instead.
 
 ## Companion scripts
 
@@ -165,6 +181,7 @@ Leave their URLs empty and the rows simply do not appear.
 ```sh
 npm run dev        # build, install and hot-reload on save
 npm run typecheck  # tsc
+npm run test:paperless # Paperless API regression tests (no live credentials needed)
 npm run lint       # ray lint (macOS only); npm run lint:local runs eslint anywhere
 npm run gen:env    # regenerate .env.example from package.json
 ```

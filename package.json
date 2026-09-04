@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "homelab",
   "title": "Homelab",
-  "description": "Your whole homelab in Raycast: stats, downloads, media requests, monitors, music, photos, books, DNS, backups and money — one hub, every service optional.",
+  "description": "Your whole homelab in Raycast: stats, downloads, media requests, monitors, music, photos, books, documents, DNS, backups and money — one hub, every service optional.",
   "icon": "icon.png",
   "author": "aleksandar",
   "license": "MIT",
@@ -277,6 +277,20 @@
         "kindle",
         "book",
         "epub"
+      ]
+    },
+    {
+      "name": "paperless",
+      "title": "Paperless Search",
+      "subtitle": "Homelab",
+      "description": "Search document contents in Paperless-ngx, preview and download",
+      "mode": "view",
+      "keywords": [
+        "paperless",
+        "documents",
+        "ocr",
+        "receipts",
+        "invoices"
       ]
     },
     {
@@ -617,6 +631,21 @@
       "required": false
     },
     {
+      "name": "paperlessUrl",
+      "title": "Paperless URL",
+      "description": "Base URL of your Paperless-ngx instance. Leave empty to hide Paperless features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://paperless.example.com"
+    },
+    {
+      "name": "paperlessToken",
+      "title": "Paperless API Token",
+      "description": "Your Paperless profile → API Auth Token. Documents must be visible to this user.",
+      "type": "password",
+      "required": false
+    },
+    {
       "name": "metubeUrl",
       "title": "MeTube URL",
       "description": "Base URL of your MeTube instance. Leave empty to hide MeTube features.",
@@ -811,6 +840,7 @@
     "dev": "ray develop",
     "build": "ray build -e dist",
     "typecheck": "tsc --noEmit",
+    "test:paperless": "node --test scripts/paperless-api.test.cjs",
     "lint": "ray lint",
     "lint:local": "eslint src",
     "fix-lint": "ray lint --fix",
@@ -833,6 +863,7 @@
     "lidarr",
     "audiobookshelf",
     "immich",
+    "paperless-ngx",
     "uptime-kuma",
     "firefly-iii"
   ],

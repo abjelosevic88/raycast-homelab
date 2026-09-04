@@ -25,6 +25,7 @@ import Subtitles from "./subtitles";
 import Bills, { BillsList, MonthTransactions } from "./bills";
 import Indexers from "./indexers";
 import Books from "./books";
+import Paperless from "./paperless";
 import Nudge from "./nudge";
 import { MemoryGrid } from "./photos";
 import {
@@ -200,6 +201,13 @@ const COMMANDS = [
     view: () => <Books />,
   },
   {
+    name: "paperless",
+    title: "Paperless Search",
+    subtitle: "Documents — full-text search, preview, download",
+    icon: Icon.Document,
+    view: () => <Paperless />,
+  },
+  {
     name: "nudge",
     title: "Nudge Subtitles",
     subtitle: "±ms shift for one .srt, undo, unpin",
@@ -218,6 +226,7 @@ function links(): { title: string; url: string; icon: Icon }[] {
     { title: "TrueNAS", url: URLS.truenas, icon: Icon.HardDrive },
     { title: "qBittorrent", url: DL_URLS.qbit, icon: Icon.Download },
     { title: "SABnzbd", url: DL_URLS.sab, icon: Icon.Download },
+    { title: "Paperless", url: optionalUrl("paperlessUrl"), icon: Icon.Document },
     { title: "Forgejo", url: optionalUrl("forgejoUrl"), icon: Icon.Code },
   ].filter((l) => l.url);
 }

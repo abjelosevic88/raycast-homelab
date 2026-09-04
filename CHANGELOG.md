@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-04 — Paperless Search
+
+- Added Paperless Search for recent documents and full-text OCR search, with tags,
+  correspondent, previews, browser links and original/archive downloads.
+- Added optional Paperless URL and API token preferences (`PAPERLESS_URL` and
+  `PAPERLESS_TOKEN`), plus a command and quick link in Homelab Home.
+
 ## 2026-09-04 — Public release prep
 
 - Removed every hardcoded host. All URLs and credentials now come from the extension
