@@ -821,6 +821,22 @@
     "Media",
     "Productivity"
   ],
+  "keywords": [
+    "raycast",
+    "raycast-extension",
+    "homelab",
+    "self-hosted",
+    "jellyfin",
+    "jellyseerr",
+    "sonarr",
+    "radarr",
+    "lidarr",
+    "audiobookshelf",
+    "nextcloud",
+    "immich",
+    "uptime-kuma",
+    "firefly-iii"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/abjelosevic88/raycast-homelab.git"

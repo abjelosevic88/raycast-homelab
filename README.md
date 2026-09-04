@@ -13,10 +13,11 @@ extension hides them.
 
 ## Screenshots
 
-<p align="center"><img src="docs/screenshots/home-commands.jpg" width="800" alt="Homelab Home — the hub"></p>
+<p align="center"><img src="docs/screenshots/home-now.jpg" width="800" alt="Homelab Home — Right Now status rows for server, NAS, downloads, monitors, Jellyfin, subtitles and money"></p>
 
 | | |
 |---|---|
+| **Homelab Home** — every command and quick link, Esc returns here<br><img src="docs/screenshots/home-commands.jpg"> | **Homelab Menu Bar** — server, NAS and downloads at a glance<br><img src="docs/screenshots/menu-bar.jpg" width="420"> |
 | **Homelab Stats** — CPU, memory, uptime, NAS pool, drive temps<br><img src="docs/screenshots/stats.jpg"> | **Top processes** — the same view scrolled down<br><img src="docs/screenshots/stats-processes.jpg"> |
 | **Homelab Downloads** — qBittorrent and SABnzbd live<br><img src="docs/screenshots/downloads.jpg"> | **Disk Health** — Scrutiny SMART for every host<br><img src="docs/screenshots/disk-health.jpg"> |
 | **Discover Media** — Jellyseerr trending and search<br><img src="docs/screenshots/discover-media.jpg"> | **Request from the grid** — all seasons or a profile<br><img src="docs/screenshots/discover-actions.jpg"> |
