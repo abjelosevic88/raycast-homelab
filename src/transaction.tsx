@@ -10,7 +10,7 @@ import {
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { fetchError } from "./fetch-error";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AssistantData,
   convertAmount,
@@ -39,6 +39,13 @@ export default function Transaction() {
   );
 
   const parsed = data ? parseAssistant(query, data.templates) : null;
+
+  // Keep the Assistant row selected whenever the query parses, so picking a
+  // template ("Use in Assistant") or typing a valid line leaves Enter = Add.
+  const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (parsed) setSelectedId("assistant");
+  }, [query, Boolean(parsed)]);
 
   async function create(p: ParsedInput, d: AssistantData) {
     const toast = await showToast({
@@ -117,6 +124,8 @@ export default function Transaction() {
       filtering={false}
       searchText={query}
       onSearchTextChange={setQuery}
+      selectedItemId={selectedId}
+      onSelectionChange={(id) => setSelectedId(id ?? undefined)}
       searchBarPlaceholder="template  amount(currency)  description  ±Nd — e.g. gorivo 50 full tank -1d"
     >
       {!hasToken && (
@@ -129,6 +138,7 @@ export default function Transaction() {
       {parsed && data && (
         <List.Section title="Assistant">
           <List.Item
+            id="assistant"
             icon={{ source: Icon.PlusCircle, tintColor: Color.Green }}
             {...summarize(parsed, data)}
             actions={
@@ -161,6 +171,7 @@ export default function Transaction() {
             return (
               <List.Item
                 key={t.id}
+                id={`tpl-${t.id}`}
                 icon={{ source: style.icon, tintColor: style.color }}
                 title={t.name}
                 subtitle={t.description !== t.name ? t.description : undefined}
