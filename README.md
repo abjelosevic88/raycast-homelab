@@ -68,7 +68,7 @@ extension hides them.
 ## Install
 
 ```sh
-git clone https://github.com/<you>/raycast-homelab.git
+git clone https://github.com/abjelosevic88/raycast-homelab.git
 cd raycast-homelab
 npm ci
 npm run build

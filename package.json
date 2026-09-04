@@ -820,5 +820,10 @@
     "Developer Tools",
     "Media",
     "Productivity"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abjelosevic88/raycast-homelab.git"
+  },
+  "homepage": "https://github.com/abjelosevic88/raycast-homelab#readme"
 }
