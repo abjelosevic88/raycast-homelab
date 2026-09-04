@@ -1,31 +1,56 @@
-import { Icon, launchCommand, LaunchType, MenuBarExtra, open } from "@raycast/api";
+import {
+  Icon,
+  launchCommand,
+  LaunchType,
+  MenuBarExtra,
+  open,
+} from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
 import { fmtSpeed, loadDownloads } from "./downloads-api";
 import { loadKuma } from "./kuma-api";
-import { loadBackups } from "./health-api";
+import { HEALTH_URLS, loadBackups } from "./health-api";
+import { KUMA_URL } from "./kuma-api";
+
+function openIf(url: string) {
+  if (url) open(url);
+}
 
 function openDownloads() {
   launchCommand({ name: "downloads", type: LaunchType.UserInitiated });
 }
 
 export default function MenuBar() {
-  const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], { keepPreviousData: true });
-  const { data: dl, revalidate: revalidateDl } = useCachedPromise(loadDownloads, [], { keepPreviousData: true });
-  const kuma = useCachedPromise(async () => {
-    try {
-      return await loadKuma();
-    } catch {
-      return undefined;
-    }
-  }, [], { keepPreviousData: true });
-  const backups = useCachedPromise(async () => {
-    try {
-      return await loadBackups();
-    } catch {
-      return undefined;
-    }
-  }, [], { keepPreviousData: true });
+  const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], {
+    keepPreviousData: true,
+  });
+  const { data: dl, revalidate: revalidateDl } = useCachedPromise(
+    loadDownloads,
+    [],
+    { keepPreviousData: true },
+  );
+  const kuma = useCachedPromise(
+    async () => {
+      try {
+        return await loadKuma();
+      } catch {
+        return undefined;
+      }
+    },
+    [],
+    { keepPreviousData: true },
+  );
+  const backups = useCachedPromise(
+    async () => {
+      try {
+        return await loadBackups();
+      } catch {
+        return undefined;
+      }
+    },
+    [],
+    { keepPreviousData: true },
+  );
   const downMonitors = kuma.data?.monitors.filter((m) => m.status === 0) ?? [];
   const failedBackups = backups.data?.filter((b) => !b.ok) ?? [];
   const alerts = downMonitors.length + failedBackups.length;
@@ -50,20 +75,25 @@ export default function MenuBar() {
       : undefined;
 
   return (
-    <MenuBarExtra icon={Icon.HardDrive} title={title} isLoading={isLoading} tooltip="Homelab">
+    <MenuBarExtra
+      icon={Icon.HardDrive}
+      title={title}
+      isLoading={isLoading}
+      tooltip="Homelab"
+    >
       <MenuBarExtra.Section title="Server">
         {data?.cpu && (
           <MenuBarExtra.Item
             icon={Icon.Gauge}
             title={`CPU ${Math.round(data.cpu.percent)}% · load ${data.cpu.load1.toFixed(1)}`}
-            onAction={() => open(URLS.glances)}
+            onAction={() => openIf(URLS.glances)}
           />
         )}
         {data?.mem && (
           <MenuBarExtra.Item
             icon={Icon.MemoryChip}
             title={`Memory ${fmtGiB(data.mem.free)} free / ${fmtGiB(data.mem.total)}`}
-            onAction={() => open(URLS.glances)}
+            onAction={() => openIf(URLS.glances)}
           />
         )}
         {data?.fs.map((f) => (
@@ -71,46 +101,62 @@ export default function MenuBar() {
             key={f.mountPoint}
             icon={Icon.HardDrive}
             title={`${f.mountPoint} ${fmtDisk(f.free)} free / ${fmtDisk(f.total)}`}
-            onAction={() => open(URLS.glances)}
+            onAction={() => openIf(URLS.glances)}
           />
         ))}
         {data?.temps?.server && (
           <MenuBarExtra.Item
             icon={Icon.Temperature}
             title={[
-              data.temps.server.cpu ? `CPU ${data.temps.server.cpu.temp}°` : null,
+              data.temps.server.cpu
+                ? `CPU ${data.temps.server.cpu.temp}°`
+                : null,
               ...data.temps.server.disks.map((d) => `${d.name} ${d.temp}°`),
             ]
               .filter(Boolean)
               .join(" · ")}
-            onAction={() => open(URLS.homepage)}
+            onAction={() => openIf(URLS.homepage)}
           />
         )}
-        {data?.uptime && <MenuBarExtra.Item icon={Icon.Clock} title={`Up ${data.uptime}`} />}
+        {data?.uptime && (
+          <MenuBarExtra.Item icon={Icon.Clock} title={`Up ${data.uptime}`} />
+        )}
       </MenuBarExtra.Section>
       <MenuBarExtra.Section title="NAS">
         {data?.pool && (
           <MenuBarExtra.Item
             icon={Icon.Coin}
             title={`${data.pool.name} ${fmtDisk(data.pool.free)} free / ${fmtDisk(data.pool.total)}${data.pool.healthy ? "" : " — DEGRADED"}`}
-            onAction={() => open(URLS.truenas)}
+            onAction={() => openIf(URLS.truenas)}
           />
         )}
         {data?.temps && data.temps.nas.disks.length > 0 && (
           <MenuBarExtra.Item
             icon={Icon.Temperature}
-            title={data.temps.nas.disks.map((d) => `${d.name} ${d.temp}°`).join(" · ")}
-            onAction={() => open(URLS.truenas)}
+            title={data.temps.nas.disks
+              .map((d) => `${d.name} ${d.temp}°`)
+              .join(" · ")}
+            onAction={() => openIf(URLS.truenas)}
           />
         )}
       </MenuBarExtra.Section>
       {alerts > 0 && (
         <MenuBarExtra.Section title="Alerts">
           {downMonitors.map((m) => (
-            <MenuBarExtra.Item key={`dn-${m.name}`} icon={Icon.XMarkCircle} title={`DOWN: ${m.name}`} onAction={() => open("https://kuma.bjelke.org")} />
+            <MenuBarExtra.Item
+              key={`dn-${m.name}`}
+              icon={Icon.XMarkCircle}
+              title={`DOWN: ${m.name}`}
+              onAction={() => openIf(KUMA_URL)}
+            />
           ))}
           {failedBackups.map((b) => (
-            <MenuBarExtra.Item key={`bk-${b.planId}`} icon={Icon.Warning} title={`Backup failed: ${b.planId}`} onAction={() => open("https://backrest.bjelke.org")} />
+            <MenuBarExtra.Item
+              key={`bk-${b.planId}`}
+              icon={Icon.Warning}
+              title={`Backup failed: ${b.planId}`}
+              onAction={() => openIf(HEALTH_URLS.backrest)}
+            />
           ))}
         </MenuBarExtra.Section>
       )}
@@ -141,14 +187,22 @@ export default function MenuBar() {
       {data && data.errors.length > 0 && (
         <MenuBarExtra.Section title="Errors">
           {data.errors.map((e, i) => (
-            <MenuBarExtra.Item key={i} icon={Icon.Warning} title={e.slice(0, 60)} />
+            <MenuBarExtra.Item
+              key={i}
+              icon={Icon.Warning}
+              title={e.slice(0, 60)}
+            />
           ))}
         </MenuBarExtra.Section>
       )}
       <MenuBarExtra.Section>
         <MenuBarExtra.Item
           icon={Icon.ArrowClockwise}
-          title={data ? `Updated ${new Date(data.fetchedAt).toLocaleTimeString()} — Refresh` : "Refresh"}
+          title={
+            data
+              ? `Updated ${new Date(data.fetchedAt).toLocaleTimeString()} — Refresh`
+              : "Refresh"
+          }
           onAction={() => {
             revalidate();
             revalidateDl();

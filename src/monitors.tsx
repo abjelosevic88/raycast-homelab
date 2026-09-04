@@ -1,16 +1,18 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
-import { KUMA_URL, loadKuma, MonitorStatus } from "./kuma-api";
+import { hasKuma, KUMA_URL, loadKuma, MonitorStatus } from "./kuma-api";
+import NotConfigured from "./not-configured";
 
 const POLL_MS = 15000;
 
-const STATUS_META: Record<number, { label: string; color: Color; icon: Icon }> = {
-  0: { label: "DOWN", color: Color.Red, icon: Icon.XMarkCircle },
-  1: { label: "up", color: Color.Green, icon: Icon.CheckCircle },
-  2: { label: "pending", color: Color.Orange, icon: Icon.CircleProgress50 },
-  3: { label: "maintenance", color: Color.Blue, icon: Icon.Hammer },
-};
+const STATUS_META: Record<number, { label: string; color: Color; icon: Icon }> =
+  {
+    0: { label: "DOWN", color: Color.Red, icon: Icon.XMarkCircle },
+    1: { label: "up", color: Color.Green, icon: Icon.CheckCircle },
+    2: { label: "pending", color: Color.Orange, icon: Icon.CircleProgress50 },
+    3: { label: "maintenance", color: Color.Blue, icon: Icon.Hammer },
+  };
 
 function monitorItem(m: MonitorStatus) {
   const meta = STATUS_META[m.status] ?? STATUS_META[2];
@@ -22,7 +24,14 @@ function monitorItem(m: MonitorStatus) {
       subtitle={m.group}
       accessories={[
         ...(m.ping !== undefined ? [{ text: `${Math.round(m.ping)} ms` }] : []),
-        ...(m.uptime24 !== undefined ? [{ text: `${(m.uptime24 * 100).toFixed(1)}%`, tooltip: "24h uptime" }] : []),
+        ...(m.uptime24 !== undefined
+          ? [
+              {
+                text: `${(m.uptime24 * 100).toFixed(1)}%`,
+                tooltip: "24h uptime",
+              },
+            ]
+          : []),
         { tag: { value: meta.label, color: meta.color } },
       ]}
       actions={
@@ -35,7 +44,14 @@ function monitorItem(m: MonitorStatus) {
 }
 
 export default function Monitors() {
-  const { data, isLoading, revalidate } = useCachedPromise(loadKuma, [], { keepPreviousData: true });
+  const configured = hasKuma();
+  const { data, isLoading, revalidate } = useCachedPromise(
+    async (ok: boolean) => (ok ? await loadKuma() : undefined),
+    [configured],
+    {
+      keepPreviousData: true,
+    },
+  );
 
   useEffect(() => {
     const t = setInterval(revalidate, POLL_MS);
@@ -51,15 +67,33 @@ export default function Monitors() {
     <List
       isLoading={isLoading}
       searchBarPlaceholder={`Filter ${monitors.length} monitors…`}
-      navigationTitle={down.length > 0 ? `Monitors — ${down.length} DOWN` : "Monitors — all up"}
+      navigationTitle={
+        down.length > 0 ? `Monitors — ${down.length} DOWN` : "Monitors — all up"
+      }
     >
-      {down.length > 0 && <List.Section title={`Down (${down.length})`}>{down.map(monitorItem)}</List.Section>}
+      {!configured && (
+        <NotConfigured
+          service="Uptime Kuma"
+          needs="URL plus a status page slug or API key"
+        />
+      )}
+      {down.length > 0 && (
+        <List.Section title={`Down (${down.length})`}>
+          {down.map(monitorItem)}
+        </List.Section>
+      )}
       {notUp.length > 0 && (
-        <List.Section title={`Pending / Maintenance (${notUp.length})`}>{notUp.map(monitorItem)}</List.Section>
+        <List.Section title={`Pending / Maintenance (${notUp.length})`}>
+          {notUp.map(monitorItem)}
+        </List.Section>
       )}
       <List.Section
         title={`Up (${up.length})`}
-        subtitle={data?.source === "status-page" ? "status page only — add a Kuma API key for all monitors" : undefined}
+        subtitle={
+          data?.source === "status-page"
+            ? "status page only — add a Kuma API key for all monitors"
+            : undefined
+        }
       >
         {up.map(monitorItem)}
       </List.Section>

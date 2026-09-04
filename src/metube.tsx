@@ -1,23 +1,44 @@
-import { Action, ActionPanel, Clipboard, closeMainWindow, Form, getPreferenceValues, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Clipboard,
+  closeMainWindow,
+  Form,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { useEffect, useState } from "react";
+import { optionalUrl, requireUrl, setting } from "./config";
 
-interface Preferences {
-  metubeUrl?: string;
+const METUBE_URL = optionalUrl("metubeUrl");
+
+interface Folder {
+  value: string;
+  title: string;
+  video?: boolean;
 }
 
-const METUBE_URL = "https://metube.bjelke.org";
-
-// destinations mirror the MeTube mounts: default dir feeds the ABS YouTube
-// library (opus audio), .ambients/.work feed Navidrome (opus audio),
-// .xxx is a plain video dir.
-const FOLDERS: { value: string; title: string; video?: boolean }[] = [
-  { value: "", title: "ABS YouTube library" },
-  { value: ".ambients", title: "Music — .ambients" },
-  { value: ".work", title: "Music — .work" },
-  { value: ".xxx", title: ".xxx (video)", video: true },
-];
+// Destinations come from the `metubeFolders` preference: "folder|Label[|video],…".
+// The default download dir is always offered first and downloads opus audio;
+// entries flagged |video download video instead.
+function folders(): Folder[] {
+  const extra = setting("metubeFolders")
+    .split(",")
+    .map((raw) => raw.trim())
+    .filter(Boolean)
+    .map((raw) => {
+      const [value, title, flag] = raw.split("|").map((x) => x.trim());
+      return {
+        value,
+        title: title || value,
+        video: flag?.toLowerCase() === "video",
+      };
+    });
+  return [{ value: "", title: "Default folder (audio)" }, ...extra];
+}
 
 export default function Metube() {
+  const FOLDERS = folders();
   const [url, setUrl] = useState("");
   const [folder, setFolder] = useState("");
   const [quality, setQuality] = useState("best");
@@ -29,14 +50,20 @@ export default function Metube() {
   }, []);
 
   async function submit() {
-    const p = getPreferenceValues<Preferences>();
-    const base = !p.metubeUrl || p.metubeUrl.includes(".ts.net") ? METUBE_URL : p.metubeUrl.replace(/\/+$/, "");
+    const base = requireUrl("metubeUrl", "MeTube");
     if (!/^https?:\/\//.test(url.trim())) {
-      await showToast({ style: Toast.Style.Failure, title: "Not a URL", message: "Paste a video link first" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Not a URL",
+        message: "Paste a video link first",
+      });
       return;
     }
     const wantsVideo = Boolean(FOLDERS.find((f) => f.value === folder)?.video);
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Sending to MeTube…" });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Sending to MeTube…",
+    });
     try {
       const res = await fetch(`${base}/add`, {
         method: "POST",
@@ -58,7 +85,7 @@ export default function Metube() {
       if (body.status === "error") throw new Error(body.msg ?? "unknown error");
       toast.style = Toast.Style.Success;
       toast.title = "Queued in MeTube";
-      toast.message = `${wantsVideo ? `video ${quality}` : "audio (opus)"} → ${folder || "ABS YouTube"}`;
+      toast.message = `${wantsVideo ? `video ${quality}` : "audio (opus)"} → ${folder || "default folder"}`;
       await closeMainWindow();
     } catch (e) {
       toast.style = Toast.Style.Failure;
@@ -76,20 +103,40 @@ export default function Metube() {
         </ActionPanel>
       }
     >
-      <Form.TextField id="url" title="URL" placeholder="https://youtube.com/watch?v=…" value={url} onChange={setUrl} />
-      <Form.Dropdown id="folder" title="Destination" value={folder} onChange={setFolder}>
+      <Form.TextField
+        id="url"
+        title="URL"
+        placeholder="https://youtube.com/watch?v=…"
+        value={url}
+        onChange={setUrl}
+      />
+      <Form.Dropdown
+        id="folder"
+        title="Destination"
+        value={folder}
+        onChange={setFolder}
+      >
         {FOLDERS.map((f) => (
-          <Form.Dropdown.Item key={f.value || "default"} value={f.value} title={f.title} />
+          <Form.Dropdown.Item
+            key={f.value || "default"}
+            value={f.value}
+            title={f.title}
+          />
         ))}
       </Form.Dropdown>
       {FOLDERS.find((f) => f.value === folder)?.video && (
-        <Form.Dropdown id="quality" title="Quality" value={quality} onChange={setQuality}>
+        <Form.Dropdown
+          id="quality"
+          title="Quality"
+          value={quality}
+          onChange={setQuality}
+        >
           <Form.Dropdown.Item value="best" title="Best" />
           <Form.Dropdown.Item value="1080" title="1080p" />
           <Form.Dropdown.Item value="720" title="720p" />
         </Form.Dropdown>
       )}
-      <Form.Description text="Audio destinations download opus: the default feeds the ABS YouTube library, the Music ones feed Navidrome's dropboxes. .xxx downloads video." />
+      <Form.Description text="Audio destinations download opus audio. Add more folders (and video ones) in the MeTube Destinations preference." />
     </Form>
   );
 }

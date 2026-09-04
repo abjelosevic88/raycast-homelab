@@ -1,4 +1,13 @@
-import { Action, ActionPanel, Color, Detail, Grid, Icon, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Detail,
+  Grid,
+  Icon,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import {
@@ -24,13 +33,21 @@ function PhotoPreview(props: { photo: Photo }) {
     <Detail
       navigationTitle={p.originalFileName}
       markdown={`![${p.originalFileName}](${thumbUrl(p.id, "preview")})${
-        p.type === "VIDEO" ? "\n\n*Video — press Enter to play it in Immich*" : ""
+        p.type === "VIDEO"
+          ? "\n\n*Video — press Enter to play it in Immich*"
+          : ""
       }`}
       metadata={
         <Detail.Metadata>
           <Detail.Metadata.Label title="File" text={p.originalFileName} />
-          <Detail.Metadata.Label title="Taken" text={p.fileCreatedAt?.slice(0, 19).replace("T", " ") ?? "—"} />
-          <Detail.Metadata.Label title="Type" text={p.type === "VIDEO" ? "Video" : "Photo"} />
+          <Detail.Metadata.Label
+            title="Taken"
+            text={p.fileCreatedAt?.slice(0, 19).replace("T", " ") ?? "—"}
+          />
+          <Detail.Metadata.Label
+            title="Type"
+            text={p.type === "VIDEO" ? "Video" : "Photo"}
+          />
           {p.isFavorite && (
             <Detail.Metadata.TagList title="Favorite">
               <Detail.Metadata.TagList.Item text="♥" color={Color.Red} />
@@ -40,8 +57,14 @@ function PhotoPreview(props: { photo: Photo }) {
       }
       actions={
         <ActionPanel>
-          <Action.OpenInBrowser title="Open in Immich" url={photoWebUrl(p.id)} />
-          <Action.CopyToClipboard title="Copy File Name" content={p.originalFileName} />
+          <Action.OpenInBrowser
+            title="Open in Immich"
+            url={photoWebUrl(p.id)}
+          />
+          <Action.CopyToClipboard
+            title="Copy File Name"
+            content={p.originalFileName}
+          />
         </ActionPanel>
       }
     />
@@ -61,7 +84,11 @@ function PhotoItem(props: { photo: Photo; onChanged?: () => void }) {
       });
       props.onChanged?.();
     } catch (e) {
-      await showToast({ style: Toast.Style.Failure, title: "Failed", message: String(e) });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Failed",
+        message: String(e),
+      });
     }
   }
 
@@ -72,7 +99,11 @@ function PhotoItem(props: { photo: Photo; onChanged?: () => void }) {
       subtitle={p.originalFileName}
       actions={
         <ActionPanel>
-          <Action.Push title="Quick Look" icon={Icon.Eye} target={<PhotoPreview photo={p} />} />
+          <Action.Push
+            title="Quick Look"
+            icon={Icon.Eye}
+            target={<PhotoPreview photo={p} />}
+          />
           <Action.OpenInBrowser
             title="Open in Immich"
             url={photoWebUrl(p.id)}
@@ -98,9 +129,18 @@ function PhotoItem(props: { photo: Photo; onChanged?: () => void }) {
 export function MemoryGrid(props: { memories: Memory[] }) {
   const thisYear = new Date().getFullYear();
   return (
-    <Grid navigationTitle="On This Day" columns={4} aspectRatio="1" fit={Grid.Fit.Fill} searchBarPlaceholder="Filter…">
+    <Grid
+      navigationTitle="On This Day"
+      columns={4}
+      aspectRatio="1"
+      fit={Grid.Fit.Fill}
+      searchBarPlaceholder="Filter…"
+    >
       {props.memories.map((m) => (
-        <Grid.Section key={m.id} title={`${m.year} — ${thisYear - m.year} year${thisYear - m.year === 1 ? "" : "s"} ago`}>
+        <Grid.Section
+          key={m.id}
+          title={`${m.year} — ${thisYear - m.year} year${thisYear - m.year === 1 ? "" : "s"} ago`}
+        >
           {m.assets.map((p) => (
             <PhotoItem key={p.id} photo={p} />
           ))}
@@ -111,7 +151,9 @@ export function MemoryGrid(props: { memories: Memory[] }) {
 }
 
 function AlbumGrid(props: { album: ImmichAlbum }) {
-  const { data, isLoading, revalidate } = useCachedPromise(albumAssets, [props.album.id]);
+  const { data, isLoading, revalidate } = useCachedPromise(albumAssets, [
+    props.album.id,
+  ]);
   return (
     <Grid
       isLoading={isLoading}
@@ -121,7 +163,9 @@ function AlbumGrid(props: { album: ImmichAlbum }) {
       fit={Grid.Fit.Fill}
       searchBarPlaceholder={`Filter ${props.album.assetCount} photos…`}
     >
-      {data?.map((p) => <PhotoItem key={p.id} photo={p} onChanged={revalidate} />)}
+      {data?.map((p) => (
+        <PhotoItem key={p.id} photo={p} onChanged={revalidate} />
+      ))}
     </Grid>
   );
 }
@@ -133,26 +177,38 @@ export default function Photos() {
   const searching = query.trim().length >= 2;
 
   const photosResult = useCachedPromise(
-    (q: string, m: PhotoMode, ok: boolean) => async ({ page }: { page: number }) => {
-      if (!ok || m === "albums") return { data: [] as Photo[], hasMore: false };
-      const r = q.trim().length >= 2 ? await smartSearch(q.trim(), page) : await listPhotos(m, page);
-      return { data: r.photos, hasMore: r.hasMore };
-    },
+    (q: string, m: PhotoMode, ok: boolean) =>
+      async ({ page }: { page: number }) => {
+        if (!ok || m === "albums")
+          return { data: [] as Photo[], hasMore: false };
+        const r =
+          q.trim().length >= 2
+            ? await smartSearch(q.trim(), page)
+            : await listPhotos(m, page);
+        return { data: r.photos, hasMore: r.hasMore };
+      },
     [query, mode, hasKey],
     {
       keepPreviousData: true,
       onError: (e) => {
-        void showToast({ style: Toast.Style.Failure, title: "Immich", message: e.message });
+        void showToast({
+          style: Toast.Style.Failure,
+          title: "Immich",
+          message: e.message,
+        });
       },
     },
   );
-  const albumsResult = useCachedPromise(async (m: PhotoMode, ok: boolean) => (ok && m === "albums" ? await listAlbums() : []), [
-    mode,
-    hasKey,
-  ]);
+  const albumsResult = useCachedPromise(
+    async (m: PhotoMode, ok: boolean) =>
+      ok && m === "albums" ? await listAlbums() : [],
+    [mode, hasKey],
+  );
 
   const seen = new Set<string>();
-  const photos = (photosResult.data ?? []).filter((p) => !seen.has(p.id) && (seen.add(p.id) || true));
+  const photos = (photosResult.data ?? []).filter(
+    (p) => !seen.has(p.id) && (seen.add(p.id) || true),
+  );
   const showAlbums = mode === "albums" && !searching;
 
   return (
@@ -167,7 +223,11 @@ export default function Photos() {
       fit={Grid.Fit.Fill}
       searchBarPlaceholder="Smart search — e.g. sunset at the beach…"
       searchBarAccessory={
-        <Grid.Dropdown tooltip="View" value={mode} onChange={(v) => setMode(v as PhotoMode)}>
+        <Grid.Dropdown
+          tooltip="View"
+          value={mode}
+          onChange={(v) => setMode(v as PhotoMode)}
+        >
           {PHOTO_MODES.map((m) => (
             <Grid.Dropdown.Item key={m.id} title={m.title} value={m.id} />
           ))}
@@ -178,7 +238,7 @@ export default function Photos() {
         <Grid.EmptyView
           icon={{ source: Icon.Key, tintColor: Color.Orange }}
           title="Immich API key not set"
-          description="⌘K → Configure Extension → paste an Immich API key (Account Settings → API Keys)"
+          description="⌘K → Configure Extension → set the Immich URL and an API key (Account Settings → API Keys)"
         />
       )}
       {showAlbums ? (
@@ -195,17 +255,34 @@ export default function Photos() {
               subtitle={`${a.assetCount} items`}
               actions={
                 <ActionPanel>
-                  <Action.Push title="Open Album" icon={Icon.Folder} target={<AlbumGrid album={a} />} />
-                  <Action.OpenInBrowser title="Open in Immich" url={albumWebUrl(a.id)} />
+                  <Action.Push
+                    title="Open Album"
+                    icon={Icon.Folder}
+                    target={<AlbumGrid album={a} />}
+                  />
+                  <Action.OpenInBrowser
+                    title="Open in Immich"
+                    url={albumWebUrl(a.id)}
+                  />
                 </ActionPanel>
               }
             />
           ))}
         </Grid.Section>
       ) : (
-        <Grid.Section title={searching ? "Smart Search" : PHOTO_MODES.find((m) => m.id === mode)?.title}>
+        <Grid.Section
+          title={
+            searching
+              ? "Smart Search"
+              : PHOTO_MODES.find((m) => m.id === mode)?.title
+          }
+        >
           {photos.map((p) => (
-            <PhotoItem key={p.id} photo={p} onChanged={photosResult.revalidate} />
+            <PhotoItem
+              key={p.id}
+              photo={p}
+              onChanged={photosResult.revalidate}
+            />
           ))}
         </Grid.Section>
       )}

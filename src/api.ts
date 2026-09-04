@@ -1,24 +1,16 @@
-import { getPreferenceValues } from "@raycast/api";
+import { optionalUrl, requireUrl, setting, urlGroup } from "./config";
 
-interface Preferences {
-  glancesUrl?: string;
-  tempsUrl?: string;
-  truenasUrl?: string;
-  truenasApiKey?: string;
-}
+// Resolved from preferences / env file at access time; "" when unset.
+export const URLS = urlGroup({
+  glances: "glancesUrl",
+  temps: "tempsUrl",
+  truenas: "truenasUrl",
+  homepage: "homepageUrl",
+});
 
-// Canonical Caddy DNS names. Used whenever a preference is empty or still
-// points at the old raw tailnet host:port defaults from before this change.
-export const URLS = {
-  glances: "https://glances.bjelke.org",
-  temps: "https://home.bjelke.org/images/temps.json",
-  truenas: "https://nas.bjelke.org",
-  homepage: "https://home.bjelke.org",
-};
-
-function resolveUrl(pref: string | undefined, fallback: string): string {
-  if (!pref || pref.includes(".ts.net")) return fallback;
-  return pref.replace(/\/+$/, "");
+/** Extra filesystem mount point to show beside "/" (preference `storageMount`). */
+export function storageMount(): string {
+  return setting("storageMount").replace(/\/+$/, "") || "";
 }
 
 export interface CpuStats {
@@ -72,8 +64,14 @@ export interface HomelabStats {
 
 const TIMEOUT_MS = 8000;
 
-async function getJson<T>(url: string, headers?: Record<string, string>): Promise<T> {
-  const res = await fetch(url, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
+async function getJson<T>(
+  url: string,
+  headers?: Record<string, string>,
+): Promise<T> {
+  const res = await fetch(url, {
+    headers,
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
   return (await res.json()) as T;
 }
@@ -122,8 +120,8 @@ interface GlancesFs {
   percent: number;
 }
 interface TempsJson {
-  server: { cpu: TempReading & { name?: string }; disks: TempReading[] };
-  nas: { disks: TempReading[] };
+  server?: { cpu?: TempReading & { name?: string }; disks?: TempReading[] };
+  nas?: { disks?: TempReading[] };
 }
 interface TrueNasPool {
   name: string;
@@ -157,8 +155,7 @@ interface GlancesProcess {
 
 // separate from loadStats: the processlist payload is ~1 MB, only the Stats view wants it
 export async function loadTopProcesses(limit = 5): Promise<TopProcesses> {
-  const prefs = getPreferenceValues<Preferences>();
-  const g = resolveUrl(prefs.glancesUrl, URLS.glances);
+  const g = requireUrl("glancesUrl", "Glances");
   const raw = await getJson<GlancesProcess[]>(`${g}/api/4/processlist`);
   const procs: ProcessInfo[] = raw.map((p) => ({
     pid: p.pid,
@@ -175,54 +172,89 @@ export async function loadTopProcesses(limit = 5): Promise<TopProcesses> {
 }
 
 export async function loadStats(): Promise<HomelabStats> {
-  const prefs = getPreferenceValues<Preferences>();
-  const g = resolveUrl(prefs.glancesUrl, URLS.glances);
-  const tempsUrl = resolveUrl(prefs.tempsUrl, URLS.temps);
+  const g = optionalUrl("glancesUrl");
+  const tempsUrl = optionalUrl("tempsUrl");
+  const extraMount = storageMount();
 
   const stats: HomelabStats = { fs: [], errors: [], fetchedAt: Date.now() };
 
-  const tasks: Promise<void>[] = [
-    Promise.all([
-      getJson<GlancesQuicklook>(`${g}/api/4/quicklook`),
-      getJson<GlancesLoad>(`${g}/api/4/load`),
-    ]).then(([q, l]) => {
-      stats.cpu = { percent: q.cpu, name: q.cpu_name, load1: l.min1, cores: l.cpucore };
-    }),
-    getJson<GlancesMem>(`${g}/api/4/mem`).then((m) => {
-      stats.mem = { total: m.total, free: m.available, percent: m.percent };
-    }),
-    getJson<GlancesFs[]>(`${g}/api/4/fs`).then((list) => {
-      stats.fs = list
-        .filter((f) => f.mnt_point === "/" || f.mnt_point === "/mnt/storage")
-        .sort((a, b) => a.mnt_point.localeCompare(b.mnt_point))
-        .map((f) => ({ mountPoint: f.mnt_point, total: f.size, free: f.free, percent: f.percent }));
-    }),
-    getJson<string>(`${g}/api/4/uptime`).then((u) => {
-      stats.uptime = compactUptime(u);
-    }),
-    getJson<TempsJson>(tempsUrl).then((t) => {
-      stats.temps = {
-        server: { cpu: { ...t.server.cpu, name: t.server.cpu.name ?? "CPU" }, disks: t.server.disks },
-        nas: { disks: t.nas.disks },
-      };
-    }),
-  ];
+  const tasks: Promise<void>[] = [];
 
-  if (prefs.truenasApiKey) {
-    const n = resolveUrl(prefs.truenasUrl, URLS.truenas);
+  if (g) {
+    tasks.push(
+      Promise.all([
+        getJson<GlancesQuicklook>(`${g}/api/4/quicklook`),
+        getJson<GlancesLoad>(`${g}/api/4/load`),
+      ]).then(([q, l]) => {
+        stats.cpu = {
+          percent: q.cpu,
+          name: q.cpu_name,
+          load1: l.min1,
+          cores: l.cpucore,
+        };
+      }),
+      getJson<GlancesMem>(`${g}/api/4/mem`).then((m) => {
+        stats.mem = { total: m.total, free: m.available, percent: m.percent };
+      }),
+      getJson<GlancesFs[]>(`${g}/api/4/fs`).then((list) => {
+        stats.fs = list
+          .filter(
+            (f) =>
+              f.mnt_point === "/" || (extraMount && f.mnt_point === extraMount),
+          )
+          .sort((a, b) => a.mnt_point.localeCompare(b.mnt_point))
+          .map((f) => ({
+            mountPoint: f.mnt_point,
+            total: f.size,
+            free: f.free,
+            percent: f.percent,
+          }));
+      }),
+      getJson<string>(`${g}/api/4/uptime`).then((u) => {
+        stats.uptime = compactUptime(u);
+      }),
+    );
+  }
+
+  if (tempsUrl) {
+    tasks.push(
+      getJson<TempsJson>(tempsUrl).then((t) => {
+        stats.temps = {
+          server: {
+            cpu: t.server?.cpu
+              ? { ...t.server.cpu, name: t.server.cpu.name ?? "CPU" }
+              : null,
+            disks: t.server?.disks ?? [],
+          },
+          nas: { disks: t.nas?.disks ?? [] },
+        };
+      }),
+    );
+  }
+
+  const n = optionalUrl("truenasUrl");
+  const truenasKey = setting("truenasApiKey");
+  if (n && truenasKey) {
     tasks.push(
       getJson<TrueNasPool[]>(`${n}/api/v2.0/pool`, {
-        Authorization: `Bearer ${prefs.truenasApiKey}`,
+        Authorization: `Bearer ${truenasKey}`,
       }).then((pools) => {
         const p = pools[0];
-        if (p) stats.pool = { name: p.name, total: p.size, free: p.free, healthy: p.healthy };
+        if (p)
+          stats.pool = {
+            name: p.name,
+            total: p.size,
+            free: p.free,
+            healthy: p.healthy,
+          };
       }),
     );
   }
 
   const results = await Promise.allSettled(tasks);
   for (const r of results) {
-    if (r.status === "rejected") stats.errors.push(String(r.reason?.message ?? r.reason));
+    if (r.status === "rejected")
+      stats.errors.push(String(r.reason?.message ?? r.reason));
   }
   return stats;
 }

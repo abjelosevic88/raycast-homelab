@@ -1,29 +1,24 @@
-import { environment, getPreferenceValues } from "@raycast/api";
+import { environment } from "@raycast/api";
 import { XMLParser } from "fast-xml-parser";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
-interface Preferences {
-  calibreUrl?: string;
-  calibreUser?: string;
-  calibrePassword?: string;
-}
+import { has, optionalUrl, requireUrl, setting } from "./config";
 
-export const CALIBRE_URL = "https://reader.bjelke.org";
+export const CALIBRE_URL = optionalUrl("calibreUrl");
 const TIMEOUT_MS = 20000;
 
 function prefs() {
-  const p = getPreferenceValues<Preferences>();
   return {
-    url: !p.calibreUrl || p.calibreUrl.includes(".ts.net") ? CALIBRE_URL : p.calibreUrl.replace(/\/+$/, ""),
-    user: p.calibreUser || "admin",
-    password: p.calibrePassword ?? "",
+    url: requireUrl("calibreUrl", "Calibre-Web"),
+    user: setting("calibreUser") || "admin",
+    password: setting("calibrePassword"),
   };
 }
 
 export function hasCalibreCreds(): boolean {
-  return Boolean(prefs().password);
+  return has("calibreUrl", "calibrePassword");
 }
 
 function basicAuth(): string {
@@ -47,7 +42,10 @@ export interface Book {
   coverPath?: string; // local cached file, usable as grid content
 }
 
-const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: "@_",
+});
 
 interface OpdsLink {
   "@_rel"?: string;
@@ -74,7 +72,9 @@ async function opds(path: string): Promise<Book[]> {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Calibre-Web OPDS → HTTP ${res.status}`);
-  const xml = parser.parse(await res.text()) as { feed?: { entry?: OpdsEntry | OpdsEntry[] } };
+  const xml = parser.parse(await res.text()) as {
+    feed?: { entry?: OpdsEntry | OpdsEntry[] };
+  };
   const books: Book[] = [];
   for (const e of asArray(xml.feed?.entry)) {
     const links = asArray(e.link);
@@ -90,9 +90,15 @@ async function opds(path: string): Promise<Book[]> {
       year: e.published?.slice(0, 4),
       language: e["dcterms:language"],
       formats: links
-        .filter((l) => l["@_rel"] === "http://opds-spec.org/acquisition" && l["@_href"])
+        .filter(
+          (l) =>
+            l["@_rel"] === "http://opds-spec.org/acquisition" && l["@_href"],
+        )
         .map((l) => ({
-          format: l["@_href"]?.match(/\/download\/\d+\/([a-z0-9]+)\//i)?.[1]?.toLowerCase() ?? "file",
+          format:
+            l["@_href"]
+              ?.match(/\/download\/\d+\/([a-z0-9]+)\//i)?.[1]
+              ?.toLowerCase() ?? "file",
           href: l["@_href"] ?? "",
           size: l["@_length"] ? Number(l["@_length"]) : undefined,
         })),
@@ -125,14 +131,17 @@ async function ensureCover(book: Book): Promise<string | undefined> {
 async function withCovers(books: Book[]): Promise<Book[]> {
   const queue = [...books];
   const workers = Array.from({ length: 6 }, async () => {
-    for (let b = queue.shift(); b; b = queue.shift()) b.coverPath = await ensureCover(b);
+    for (let b = queue.shift(); b; b = queue.shift())
+      b.coverPath = await ensureCover(b);
   });
   await Promise.all(workers);
   return books;
 }
 
 export async function searchBooks(query: string): Promise<Book[]> {
-  return withCovers(await opds(`/opds/search?query=${encodeURIComponent(query)}`));
+  return withCovers(
+    await opds(`/opds/search?query=${encodeURIComponent(query)}`),
+  );
 }
 
 export async function newBooks(): Promise<Book[]> {
@@ -143,14 +152,19 @@ export function bookWebUrl(id: number): string {
   return `${prefs().url}/book/${id}`;
 }
 
-export async function downloadBook(book: Book, fmt: BookFormat): Promise<string> {
+export async function downloadBook(
+  book: Book,
+  fmt: BookFormat,
+): Promise<string> {
   const { url } = prefs();
   const res = await fetch(`${url}${fmt.href}`, {
     headers: { Authorization: basicAuth() },
     signal: AbortSignal.timeout(120000),
   });
   if (!res.ok) throw new Error(`download → HTTP ${res.status}`);
-  const safe = `${book.authors[0] ? `${book.authors[0]} - ` : ""}${book.title}`.replace(/[/\\:*?"<>|]+/g, "-").slice(0, 120);
+  const safe = `${book.authors[0] ? `${book.authors[0]} - ` : ""}${book.title}`
+    .replace(/[/\\:*?"<>|]+/g, "-")
+    .slice(0, 120);
   const target = join(homedir(), "Downloads", `${safe}.${fmt.format}`);
   writeFileSync(target, Buffer.from(await res.arrayBuffer()));
   return target;
@@ -161,20 +175,37 @@ export async function downloadBook(book: Book, fmt: BookFormat): Promise<string>
 let session: { cookie: string; at: number } | null = null;
 
 async function login(): Promise<string> {
-  if (session && Date.now() - session.at < 20 * 60 * 1000) return session.cookie;
+  if (session && Date.now() - session.at < 20 * 60 * 1000)
+    return session.cookie;
   const { url, user, password } = prefs();
-  const page = await fetch(`${url}/login`, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: "manual" });
+  const page = await fetch(`${url}/login`, {
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+    redirect: "manual",
+  });
   const html = await page.text();
   const csrf = html.match(/name="csrf_token"[^>]*value="([^"]+)"/)?.[1] ?? "";
-  const cookies0 = (page.headers.getSetCookie?.() ?? []).map((c) => c.split(";")[0]).join("; ");
+  const cookies0 = (page.headers.getSetCookie?.() ?? [])
+    .map((c) => c.split(";")[0])
+    .join("; ");
   const res = await fetch(`${url}/login`, {
     method: "POST",
     redirect: "manual",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: cookies0 },
-    body: new URLSearchParams({ csrf_token: csrf, username: user, password, submit: "", next: "/" }).toString(),
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Cookie: cookies0,
+    },
+    body: new URLSearchParams({
+      csrf_token: csrf,
+      username: user,
+      password,
+      submit: "",
+      next: "/",
+    }).toString(),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  const cookies = (res.headers.getSetCookie?.() ?? []).map((c) => c.split(";")[0]);
+  const cookies = (res.headers.getSetCookie?.() ?? []).map(
+    (c) => c.split(";")[0],
+  );
   const merged = [...cookies0.split("; ").filter(Boolean), ...cookies];
   // keep the last value per cookie name
   const map = new Map<string, string>();
@@ -183,12 +214,16 @@ async function login(): Promise<string> {
     map.set(k, c);
   }
   const cookie = [...map.values()].join("; ");
-  if (res.status !== 302 || !cookie.includes("session=")) throw new Error("Calibre-Web login failed — check username/password");
+  if (res.status !== 302 || !cookie.includes("session="))
+    throw new Error("Calibre-Web login failed — check username/password");
   session = { cookie, at: Date.now() };
   return cookie;
 }
 
-export async function sendToKindle(book: Book, fmt: BookFormat): Promise<string> {
+export async function sendToKindle(
+  book: Book,
+  fmt: BookFormat,
+): Promise<string> {
   const { url } = prefs();
   const cookie = await login();
   const res = await fetch(`${url}/send/${book.id}/${fmt.format}/0`, {
@@ -197,9 +232,15 @@ export async function sendToKindle(book: Book, fmt: BookFormat): Promise<string>
   });
   const html = await res.text();
   // flash messages: <div class="alert alert-success">…</div> or alert-danger
-  const flash = html.match(/class="alert alert-(success|danger|warning|info)[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-  const text = flash?.[2]?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const flash = html.match(
+    /class="alert alert-(success|danger|warning|info)[^"]*"[^>]*>([\s\S]*?)<\/div>/,
+  );
+  const text = flash?.[2]
+    ?.replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!res.ok) throw new Error(`send → HTTP ${res.status}`);
-  if (flash && flash[1] === "danger") throw new Error(text || "Calibre-Web reported an error");
+  if (flash && flash[1] === "danger")
+    throw new Error(text || "Calibre-Web reported an error");
   return text || `Queued ${fmt.format.toUpperCase()} for Kindle`;
 }

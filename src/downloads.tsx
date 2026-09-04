@@ -1,18 +1,37 @@
-import { Action, ActionPanel, Color, Icon, List, showToast, Toast, Keyboard } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Icon,
+  List,
+  showToast,
+  Toast,
+  Keyboard,
+} from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
-import { DL_URLS, DownloadItem, fmtSpeed, loadDownloads, qbitToggle, sabToggle } from "./downloads-api";
+import {
+  DL_URLS,
+  DownloadItem,
+  fmtSpeed,
+  loadDownloads,
+  qbitToggle,
+  sabToggle,
+} from "./downloads-api";
 
 const POLL_MS = 5000;
 
 function stateColor(item: DownloadItem): Color {
   if (item.paused) return Color.SecondaryText;
-  if (item.state.includes("stalled") || item.state.includes("queued")) return Color.Orange;
+  if (item.state.includes("stalled") || item.state.includes("queued"))
+    return Color.Orange;
   return Color.Blue;
 }
 
 export default function Downloads() {
-  const { data, isLoading, revalidate } = useCachedPromise(loadDownloads, [], { keepPreviousData: true });
+  const { data, isLoading, revalidate } = useCachedPromise(loadDownloads, [], {
+    keepPreviousData: true,
+  });
 
   // live view: poll while the window is open
   useEffect(() => {
@@ -21,14 +40,29 @@ export default function Downloads() {
   }, [revalidate]);
 
   async function toggle(source: "qbit" | "sab", item: DownloadItem) {
-    const action = source === "qbit" ? (item.paused ? "start" : "stop") : item.paused ? "resume" : "pause";
+    const action =
+      source === "qbit"
+        ? item.paused
+          ? "start"
+          : "stop"
+        : item.paused
+          ? "resume"
+          : "pause";
     try {
-      if (source === "qbit") await qbitToggle(item.id, action as "start" | "stop");
+      if (source === "qbit")
+        await qbitToggle(item.id, action as "start" | "stop");
       else await sabToggle(item.id, action as "pause" | "resume");
-      await showToast({ style: Toast.Style.Success, title: `${action} → ${item.name.slice(0, 40)}` });
+      await showToast({
+        style: Toast.Style.Success,
+        title: `${action} → ${item.name.slice(0, 40)}`,
+      });
       revalidate();
     } catch (e) {
-      await showToast({ style: Toast.Style.Failure, title: `Failed to ${action}`, message: String(e) });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: `Failed to ${action}`,
+        message: String(e),
+      });
     }
   }
 
@@ -40,8 +74,20 @@ export default function Downloads() {
         shortcut={Keyboard.Shortcut.Common.Refresh}
         onAction={revalidate}
       />
-      <Action.OpenInBrowser title="Open Qbittorrent" url={DL_URLS.qbit} shortcut={{ modifiers: ["cmd", "shift"], key: "q" }} />
-      <Action.OpenInBrowser title="Open Sabnzbd" url={DL_URLS.sab} shortcut={Keyboard.Shortcut.Common.Save} />
+      {DL_URLS.qbit && (
+        <Action.OpenInBrowser
+          title="Open Qbittorrent"
+          url={DL_URLS.qbit}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "q" }}
+        />
+      )}
+      {DL_URLS.sab && (
+        <Action.OpenInBrowser
+          title="Open Sabnzbd"
+          url={DL_URLS.sab}
+          shortcut={Keyboard.Shortcut.Common.Save}
+        />
+      )}
     </>
   );
   const commonPanel = <ActionPanel>{common}</ActionPanel>;
@@ -56,8 +102,15 @@ export default function Downloads() {
         accessories={[
           { text: `${Math.round(item.progress * 100)}%`, tooltip: "progress" },
           ...(item.speed ? [{ text: item.speed }] : []),
-          ...(item.eta && !item.paused ? [{ text: item.eta, tooltip: "time left" }] : []),
-          { tag: { value: item.paused ? "paused" : item.state, color: stateColor(item) } },
+          ...(item.eta && !item.paused
+            ? [{ text: item.eta, tooltip: "time left" }]
+            : []),
+          {
+            tag: {
+              value: item.paused ? "paused" : item.state,
+              color: stateColor(item),
+            },
+          },
         ]}
         actions={
           <ActionPanel>
@@ -88,7 +141,12 @@ export default function Downloads() {
             icon={{ source: Icon.LineChart, tintColor: Color.Blue }}
             title={`↓ ${fmtSpeed(data.qbit.dlSpeed)}   ↑ ${fmtSpeed(data.qbit.upSpeed)}`}
             subtitle={`${data.qbit.downloading.length} downloading · ${data.qbit.seedCount} seeding`}
-            accessories={[{ tag: { value: "live", color: Color.Green }, tooltip: "refreshes every 5s" }]}
+            accessories={[
+              {
+                tag: { value: "live", color: Color.Green },
+                tooltip: "refreshes every 5s",
+              },
+            ]}
             actions={commonPanel}
           />
         )}
@@ -96,13 +154,19 @@ export default function Downloads() {
         {data?.qbit?.seeding.map((s) => (
           <List.Item
             key={s.id}
-            icon={{ source: Icon.ArrowUpCircle, tintColor: s.upSpeed > 0 ? Color.Green : Color.SecondaryText }}
+            icon={{
+              source: Icon.ArrowUpCircle,
+              tintColor: s.upSpeed > 0 ? Color.Green : Color.SecondaryText,
+            }}
             title={s.name}
             subtitle="seeding"
             accessories={[
               s.upSpeed > 0
                 ? { text: `↑ ${fmtSpeed(s.upSpeed)}` }
-                : { tag: { value: "idle", color: Color.SecondaryText }, tooltip: "seeding, but no one is downloading right now" },
+                : {
+                    tag: { value: "idle", color: Color.SecondaryText },
+                    tooltip: "seeding, but no one is downloading right now",
+                  },
               { tag: `ratio ${s.ratio.toFixed(1)}` },
             ]}
             actions={commonPanel}
@@ -121,13 +185,20 @@ export default function Downloads() {
         {data?.sab && (
           <List.Item
             icon={{ source: Icon.LineChart, tintColor: Color.Purple }}
-            title={data.sab.paused ? "PAUSED" : `↓ ${fmtSpeed(data.sab.speedBps)}`}
+            title={
+              data.sab.paused ? "PAUSED" : `↓ ${fmtSpeed(data.sab.speedBps)}`
+            }
             subtitle={
               data.sab.items.length > 0
                 ? `${data.sab.items.length} queued · ${data.sab.timeLeft} left`
                 : "queue empty"
             }
-            accessories={[{ tag: { value: "live", color: Color.Green }, tooltip: "refreshes every 5s" }]}
+            accessories={[
+              {
+                tag: { value: "live", color: Color.Green },
+                tooltip: "refreshes every 5s",
+              },
+            ]}
             actions={commonPanel}
           />
         )}
@@ -138,9 +209,22 @@ export default function Downloads() {
         <List.Section title="Soulseek — slskd">
           <List.Item
             icon={{ source: Icon.LineChart, tintColor: Color.Magenta }}
-            title={data.slskd.dlSpeed > 0 ? `↓ ${fmtSpeed(data.slskd.dlSpeed)}` : "↓ 0 B/s"}
-            subtitle={data.slskd.items.length > 0 ? `${data.slskd.items.length} transfers` : "queue empty"}
-            accessories={[{ tag: { value: "live", color: Color.Green }, tooltip: "refreshes every 5s" }]}
+            title={
+              data.slskd.dlSpeed > 0
+                ? `↓ ${fmtSpeed(data.slskd.dlSpeed)}`
+                : "↓ 0 B/s"
+            }
+            subtitle={
+              data.slskd.items.length > 0
+                ? `${data.slskd.items.length} transfers`
+                : "queue empty"
+            }
+            accessories={[
+              {
+                tag: { value: "live", color: Color.Green },
+                tooltip: "refreshes every 5s",
+              },
+            ]}
             actions={
               <ActionPanel>
                 <Action.OpenInBrowser title="Open Slskd" url={DL_URLS.slskd} />
@@ -151,17 +235,29 @@ export default function Downloads() {
           {data.slskd.items.map((i) => (
             <List.Item
               key={i.id}
-              icon={getProgressIcon(i.progress, i.state === "downloading" ? Color.Blue : Color.Orange)}
+              icon={getProgressIcon(
+                i.progress,
+                i.state === "downloading" ? Color.Blue : Color.Orange,
+              )}
               title={i.name}
               subtitle={i.detail}
               accessories={[
                 { text: `${Math.round(i.progress * 100)}%` },
                 ...(i.speed ? [{ text: i.speed }] : []),
-                { tag: { value: i.state, color: i.state === "downloading" ? Color.Blue : Color.Orange } },
+                {
+                  tag: {
+                    value: i.state,
+                    color:
+                      i.state === "downloading" ? Color.Blue : Color.Orange,
+                  },
+                },
               ]}
               actions={
                 <ActionPanel>
-                  <Action.OpenInBrowser title="Open Slskd" url={DL_URLS.slskd} />
+                  <Action.OpenInBrowser
+                    title="Open Slskd"
+                    url={DL_URLS.slskd}
+                  />
                   {common}
                 </ActionPanel>
               }

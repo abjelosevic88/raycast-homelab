@@ -1,17 +1,17 @@
-import { getPreferenceValues } from "@raycast/api";
+import { requireUrl, setting, urlGroup } from "./config";
 
-interface Preferences {
-  radarrApiKey?: string;
-  sonarrApiKey?: string;
-  lidarrApiKey?: string;
-  chaptarrApiKey?: string;
-}
+export const ARR_URLS = urlGroup({
+  radarr: "radarrUrl",
+  sonarr: "sonarrUrl",
+  lidarr: "lidarrUrl",
+  chaptarr: "chaptarrUrl",
+});
 
-export const ARR_URLS = {
-  radarr: "https://radarr.bjelke.org",
-  sonarr: "https://sonarr.bjelke.org",
-  lidarr: "https://lidarr.bjelke.org",
-  chaptarr: "https://chaptarr.bjelke.org",
+const ARR_LABEL: Record<ArrApp, string> = {
+  radarr: "Radarr",
+  sonarr: "Sonarr",
+  lidarr: "Lidarr",
+  chaptarr: "Chaptarr",
 };
 
 const TIMEOUT_MS = 10000;
@@ -19,20 +19,25 @@ const TIMEOUT_MS = 10000;
 type ArrApp = "radarr" | "sonarr" | "lidarr" | "chaptarr";
 
 function keyFor(app: ArrApp): string {
-  const p = getPreferenceValues<Preferences>();
-  return { radarr: p.radarrApiKey, sonarr: p.sonarrApiKey, lidarr: p.lidarrApiKey, chaptarr: p.chaptarrApiKey }[app] ?? "";
+  return setting(`${app}ApiKey`);
 }
 
+/** Apps with both a URL and an API key set. */
 export function configuredArrs(): ArrApp[] {
-  return (["radarr", "sonarr", "lidarr", "chaptarr"] as ArrApp[]).filter((a) => keyFor(a));
+  return (["radarr", "sonarr", "lidarr", "chaptarr"] as ArrApp[]).filter(
+    (a) => keyFor(a) && ARR_URLS[a],
+  );
 }
 
 async function arr<T>(app: ArrApp, path: string): Promise<T> {
   const version = app === "lidarr" || app === "chaptarr" ? "v1" : "v3";
-  const res = await fetch(`${ARR_URLS[app]}/api/${version}${path}`, {
-    headers: { "X-Api-Key": keyFor(app) },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  const res = await fetch(
+    `${requireUrl(`${app}Url`, ARR_LABEL[app])}/api/${version}${path}`,
+    {
+      headers: { "X-Api-Key": keyFor(app) },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    },
+  );
   if (!res.ok) throw new Error(`${app} ${path} → HTTP ${res.status}`);
   return (await res.json()) as T;
 }
@@ -53,7 +58,8 @@ interface ArrImage {
 }
 
 function posterOf(images?: ArrImage[]): string | undefined {
-  return images?.find((i) => i.coverType === "poster" && i.remoteUrl)?.remoteUrl;
+  return images?.find((i) => i.coverType === "poster" && i.remoteUrl)
+    ?.remoteUrl;
 }
 
 export interface StuckItem {
@@ -121,26 +127,36 @@ export async function loadArrData(): Promise<ArrData> {
 
   if (apps.includes("radarr")) {
     tasks.push(
-      arr<RadarrMovie[]>("radarr", `/calendar?start=${start}&end=${end}`).then((movies) => {
-        for (const m of movies) {
-          const date = (m.digitalRelease ?? m.physicalRelease ?? m.inCinemas ?? "").slice(0, 10);
-          if (!date) continue;
-          data.calendar.push({
-            id: `radarr-${m.id}`,
-            app: "radarr",
-            title: m.title,
-            subtitle: m.year ? String(m.year) : "movie",
-            date,
-            has: Boolean(m.hasFile),
-            poster: posterOf(m.images),
-          });
-        }
-      }),
+      arr<RadarrMovie[]>("radarr", `/calendar?start=${start}&end=${end}`).then(
+        (movies) => {
+          for (const m of movies) {
+            const date = (
+              m.digitalRelease ??
+              m.physicalRelease ??
+              m.inCinemas ??
+              ""
+            ).slice(0, 10);
+            if (!date) continue;
+            data.calendar.push({
+              id: `radarr-${m.id}`,
+              app: "radarr",
+              title: m.title,
+              subtitle: m.year ? String(m.year) : "movie",
+              date,
+              has: Boolean(m.hasFile),
+              poster: posterOf(m.images),
+            });
+          }
+        },
+      ),
     );
   }
   if (apps.includes("sonarr")) {
     tasks.push(
-      arr<SonarrEpisode[]>("sonarr", `/calendar?start=${start}&end=${end}&includeSeries=true`).then((eps) => {
+      arr<SonarrEpisode[]>(
+        "sonarr",
+        `/calendar?start=${start}&end=${end}&includeSeries=true`,
+      ).then((eps) => {
         for (const e of eps) {
           data.calendar.push({
             id: `sonarr-${e.id}`,
@@ -157,7 +173,10 @@ export async function loadArrData(): Promise<ArrData> {
   }
   if (apps.includes("lidarr")) {
     tasks.push(
-      arr<LidarrAlbum[]>("lidarr", `/calendar?start=${start}&end=${end}&includeArtist=true`).then((albums) => {
+      arr<LidarrAlbum[]>(
+        "lidarr",
+        `/calendar?start=${start}&end=${end}&includeArtist=true`,
+      ).then((albums) => {
         for (const a of albums) {
           data.calendar.push({
             id: `lidarr-${a.id}`,
@@ -175,7 +194,16 @@ export async function loadArrData(): Promise<ArrData> {
 
   if (apps.includes("chaptarr")) {
     tasks.push(
-      arr<{ id: number; title: string; releaseDate?: string; author?: { authorName?: string }; images?: ArrImage[]; statistics?: { percentOfBooks?: number; bookFileCount?: number } }[]>(
+      arr<
+        {
+          id: number;
+          title: string;
+          releaseDate?: string;
+          author?: { authorName?: string };
+          images?: ArrImage[];
+          statistics?: { percentOfBooks?: number; bookFileCount?: number };
+        }[]
+      >(
         "chaptarr",
         `/calendar?start=${start}&end=${end}&includeAuthor=true`,
       ).then((books) => {
@@ -198,7 +226,9 @@ export async function loadArrData(): Promise<ArrData> {
     tasks.push(
       arr<{ records: QueueRecord[] }>(app, `/queue?pageSize=50`).then((q) => {
         for (const r of q.records ?? []) {
-          const warnings = (r.statusMessages ?? []).flatMap((s) => s.messages ?? []);
+          const warnings = (r.statusMessages ?? []).flatMap(
+            (s) => s.messages ?? [],
+          );
           const bad =
             r.errorMessage ||
             r.trackedDownloadStatus === "warning" ||
@@ -218,7 +248,8 @@ export async function loadArrData(): Promise<ArrData> {
   }
 
   for (const r of await Promise.allSettled(tasks)) {
-    if (r.status === "rejected") data.errors.push(String(r.reason?.message ?? r.reason));
+    if (r.status === "rejected")
+      data.errors.push(String(r.reason?.message ?? r.reason));
   }
   data.calendar.sort((a, b) => a.date.localeCompare(b.date));
   return data;

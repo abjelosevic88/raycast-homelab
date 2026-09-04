@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "homelab",
   "title": "Homelab",
-  "description": "Live stats for the home server and NAS \u2014 CPU, RAM, disks, temps, uptime.",
+  "description": "Your whole homelab in Raycast: stats, downloads, media requests, monitors, music, photos, books, DNS, backups and money — one hub, every service optional.",
   "icon": "icon.png",
   "author": "aleksandar",
   "license": "MIT",
@@ -59,7 +59,7 @@
       "name": "requests",
       "title": "Request History",
       "subtitle": "Homelab",
-      "description": "Past and pending Jellyseerr requests \u2014 approve, decline, retry, delete",
+      "description": "Past and pending Jellyseerr requests — approve, decline, retry, delete",
       "mode": "view",
       "keywords": [
         "jellyseerr",
@@ -86,7 +86,7 @@
       "name": "monitors",
       "title": "Homelab Monitors",
       "subtitle": "Homelab",
-      "description": "Uptime Kuma monitor status \u2014 what's down right now",
+      "description": "Uptime Kuma monitor status — what's down right now",
       "mode": "view",
       "keywords": [
         "kuma",
@@ -283,7 +283,7 @@
       "name": "nudge",
       "title": "Nudge Subtitles",
       "subtitle": "Homelab",
-      "description": "Shift a subtitle file by \u00b1ms (pins it against the nightly sync), undo, unpin",
+      "description": "Shift a subtitle file by ±ms (pins it against the nightly sync), undo, unpin",
       "mode": "view",
       "keywords": [
         "subtitle",
@@ -296,341 +296,503 @@
   ],
   "preferences": [
     {
-      "name": "glancesUrl",
-      "title": "Glances URL",
-      "description": "Base URL of the Glances v4 API on the server (leave empty for the built-in Caddy URL)",
+      "name": "configFile",
+      "title": "Env File",
+      "description": "Optional dotenv file that supplies any setting left empty here. Keys are UPPER_SNAKE (JELLYFIN_URL, JELLYFIN_API_KEY…). See .env.example.",
       "type": "textfield",
       "required": false,
-      "default": "https://glances.bjelke.org"
+      "placeholder": "~/.config/raycast-homelab/.env",
+      "default": "~/.config/raycast-homelab/.env"
+    },
+    {
+      "name": "glancesUrl",
+      "title": "Glances URL",
+      "description": "Base URL of your Glances instance. Leave empty to hide Glances features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://glances.example.com"
+    },
+    {
+      "name": "storageMount",
+      "title": "Extra Mount Point",
+      "description": "A second filesystem from Glances to show next to / (e.g. a data SSD). Leave empty to show only the root filesystem.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "/mnt/storage"
     },
     {
       "name": "tempsUrl",
-      "title": "Temps JSON URL",
-      "description": "URL of the temps.json published by temps-publish.timer (leave empty for the built-in Caddy URL)",
+      "title": "Temperatures JSON URL",
+      "description": "Optional URL of a temps.json published by the companion temps-publish script (server CPU/disk + NAS disk temps).",
       "type": "textfield",
       "required": false,
-      "default": "https://home.bjelke.org/images/temps.json"
+      "placeholder": "https://home.example.com/images/temps.json"
+    },
+    {
+      "name": "homepageUrl",
+      "title": "Dashboard URL",
+      "description": "Optional link to your dashboard (Homepage, Dashy…) shown in the menu bar and Home links.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://home.example.com"
     },
     {
       "name": "truenasUrl",
       "title": "TrueNAS URL",
-      "description": "Base URL of TrueNAS (via Caddy on the tailnet)",
+      "description": "Base URL of your TrueNAS instance. Leave empty to hide TrueNAS features.",
       "type": "textfield",
       "required": false,
-      "default": "https://nas.bjelke.org"
+      "placeholder": "https://nas.example.com"
     },
     {
       "name": "truenasApiKey",
       "title": "TrueNAS API Key",
-      "description": "API key for pool capacity; leave empty to hide the NAS pool row",
+      "description": "Read-only key is enough (pool capacity + health). Leave empty to hide the NAS row.",
       "type": "password",
       "required": false
     },
     {
       "name": "qbitUrl",
       "title": "qBittorrent URL",
-      "description": "Leave empty for https://qbit.bjelke.org",
+      "description": "Base URL of your qBittorrent instance. Leave empty to hide qBittorrent features.",
       "type": "textfield",
-      "required": false
+      "required": false,
+      "placeholder": "https://qbit.example.com"
     },
     {
       "name": "qbitUsername",
       "title": "qBittorrent Username",
-      "description": "WebUI username",
+      "description": "Web UI username.",
       "type": "textfield",
       "required": false,
-      "default": "admin"
+      "placeholder": "admin"
     },
     {
       "name": "qbitPassword",
       "title": "qBittorrent Password",
-      "description": "WebUI password",
+      "description": "Web UI password. Never attempted while empty (qBittorrent IP-bans after 5 failures).",
       "type": "password",
       "required": false
     },
     {
       "name": "sabnzbdUrl",
       "title": "SABnzbd URL",
-      "description": "Leave empty for https://sabnzbd.bjelke.org",
+      "description": "Base URL of your SABnzbd instance. Leave empty to hide SABnzbd features.",
       "type": "textfield",
-      "required": false
+      "required": false,
+      "placeholder": "https://sabnzbd.example.com"
     },
     {
       "name": "sabnzbdApiKey",
       "title": "SABnzbd API Key",
-      "description": "Config \u2192 General \u2192 API Key",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "jellyseerrUrl",
-      "title": "Jellyseerr URL",
-      "description": "Leave empty for https://requests.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "jellyseerrApiKey",
-      "title": "Jellyseerr API Key",
-      "description": "Jellyseerr \u2192 Settings \u2192 General \u2192 API Key",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "fireflyUrl",
-      "title": "Firefly III URL",
-      "description": "Leave empty for https://firefly.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "picoUrl",
-      "title": "Firefly Pico URL",
-      "description": "Leave empty for https://pico.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "fireflyToken",
-      "title": "Firefly III Personal Access Token",
-      "description": "Firefly III \u2192 Options \u2192 Profile \u2192 OAuth \u2192 Personal Access Tokens",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "kumaUrl",
-      "title": "Uptime Kuma URL",
-      "description": "Leave empty for https://kuma.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "kumaStatusSlug",
-      "title": "Kuma Status Page Slug",
-      "description": "Used without an API key (default: home)",
-      "type": "textfield",
-      "required": false,
-      "default": "home"
-    },
-    {
-      "name": "kumaApiKey",
-      "title": "Kuma API Key",
-      "description": "Optional \u2014 Settings \u2192 API Keys; enables ALL monitors via /metrics",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "navidromeUrl",
-      "title": "Navidrome URL",
-      "description": "Leave empty for https://music.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "navidromeUser",
-      "title": "Navidrome Username",
-      "description": "Your Navidrome login",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "navidromePassword",
-      "title": "Navidrome Password",
-      "description": "Used for Subsonic token auth (md5, never sent raw)",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "ntfyUrl",
-      "title": "ntfy URL",
-      "description": "Leave empty for https://ntfy.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "ntfyTopics",
-      "title": "ntfy Topics",
-      "description": "Comma-separated topics to show",
-      "type": "textfield",
-      "required": false,
-      "default": "alerts,downloads"
-    },
-    {
-      "name": "immichUrl",
-      "title": "Immich URL",
-      "description": "Leave empty for https://immich.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "immichApiKey",
-      "title": "Immich API Key",
-      "description": "Account Settings \u2192 API Keys",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "absUrl",
-      "title": "Audiobookshelf URL",
-      "description": "Leave empty for https://audiobooks.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "absToken",
-      "title": "Audiobookshelf API Token",
-      "description": "ABS \u2192 Settings \u2192 Users \u2192 your user \u2192 API Token",
+      "description": "Config → General → API Key.",
       "type": "password",
       "required": false
     },
     {
       "name": "slskdUrl",
       "title": "slskd URL",
-      "description": "Leave empty for https://slskd.bjelke.org",
+      "description": "Base URL of your slskd instance. Leave empty to hide slskd features.",
       "type": "textfield",
-      "required": false
+      "required": false,
+      "placeholder": "https://slskd.example.com"
     },
     {
       "name": "slskdApiKey",
       "title": "slskd API Key",
-      "description": "From slskd.yml web.authentication.api_keys",
+      "description": "Options → Web → Authentication → API keys.",
       "type": "password",
       "required": false
     },
     {
-      "name": "radarrApiKey",
-      "title": "Radarr API Key",
-      "description": "Settings \u2192 General",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "sonarrApiKey",
-      "title": "Sonarr API Key",
-      "description": "Settings \u2192 General",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "lidarrApiKey",
-      "title": "Lidarr API Key",
-      "description": "Settings \u2192 General",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "komodoApiKey",
-      "title": "Komodo API Key",
-      "description": "Komodo \u2192 Settings \u2192 Api Keys",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "komodoApiSecret",
-      "title": "Komodo API Secret",
-      "description": "Shown once when creating the key",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "metubeUrl",
-      "title": "MeTube URL",
-      "description": "Leave empty for https://metube.bjelke.org",
-      "type": "textfield",
-      "required": false
-    },
-    {
-      "name": "backrestUsername",
-      "title": "Backrest Username",
-      "description": "Default: admin",
+      "name": "jellyfinUrl",
+      "title": "Jellyfin URL",
+      "description": "Base URL of your Jellyfin instance. Leave empty to hide Jellyfin features.",
       "type": "textfield",
       "required": false,
-      "default": "admin"
-    },
-    {
-      "name": "backrestPassword",
-      "title": "Backrest Password",
-      "description": "Enables the Backups row on Homelab Home",
-      "type": "password",
-      "required": false
+      "placeholder": "https://jellyfin.example.com"
     },
     {
       "name": "jellyfinApiKey",
       "title": "Jellyfin API Key",
-      "description": "Dashboard \u2192 API Keys",
+      "description": "Dashboard → API Keys.",
       "type": "password",
       "required": false
     },
     {
       "name": "jellyfinUserId",
       "title": "Jellyfin User ID",
-      "description": "Optional \u2014 defaults to the first admin user",
+      "description": "Optional. Whose Continue Watching / Next Up to show; defaults to the first administrator.",
       "type": "textfield",
+      "required": false,
+      "placeholder": "e.g. 3f1c…"
+    },
+    {
+      "name": "jellyseerrUrl",
+      "title": "Jellyseerr URL",
+      "description": "Base URL of your Jellyseerr instance. Leave empty to hide Jellyseerr features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://requests.example.com"
+    },
+    {
+      "name": "jellyseerrApiKey",
+      "title": "Jellyseerr API Key",
+      "description": "Settings → General → API Key (admin).",
+      "type": "password",
       "required": false
+    },
+    {
+      "name": "radarrUrl",
+      "title": "Radarr URL",
+      "description": "Base URL of your Radarr instance. Leave empty to hide Radarr features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://radarr.example.com"
+    },
+    {
+      "name": "radarrApiKey",
+      "title": "Radarr API Key",
+      "description": "Settings → General.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "sonarrUrl",
+      "title": "Sonarr URL",
+      "description": "Base URL of your Sonarr instance. Leave empty to hide Sonarr features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://sonarr.example.com"
+    },
+    {
+      "name": "sonarrApiKey",
+      "title": "Sonarr API Key",
+      "description": "Settings → General.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "lidarrUrl",
+      "title": "Lidarr URL",
+      "description": "Base URL of your Lidarr instance. Leave empty to hide Lidarr features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://lidarr.example.com"
+    },
+    {
+      "name": "lidarrApiKey",
+      "title": "Lidarr API Key",
+      "description": "Settings → General.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "chaptarrUrl",
+      "title": "Chaptarr / Readarr URL",
+      "description": "Base URL of your Chaptarr / Readarr instance. Leave empty to hide Chaptarr / Readarr features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://chaptarr.example.com"
+    },
+    {
+      "name": "chaptarrApiKey",
+      "title": "Chaptarr / Readarr API Key",
+      "description": "Settings → General (any Readarr-compatible fork).",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "prowlarrUrl",
+      "title": "Prowlarr URL",
+      "description": "Base URL of your Prowlarr instance. Leave empty to hide Prowlarr features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://prowlarr.example.com"
+    },
+    {
+      "name": "prowlarrApiKey",
+      "title": "Prowlarr API Key",
+      "description": "Settings → General.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "bazarrUrl",
+      "title": "Bazarr URL",
+      "description": "Base URL of your Bazarr instance. Leave empty to hide Bazarr features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://bazarr.example.com"
     },
     {
       "name": "bazarrApiKey",
       "title": "Bazarr API Key",
-      "description": "Settings \u2192 General \u2192 Security",
+      "description": "Settings → General.",
       "type": "password",
       "required": false
     },
     {
       "name": "subsyncUrl",
-      "title": "Subsync Status URL",
-      "description": "Leave empty for the built-in tailnet :8150 URL",
+      "title": "Subtitle Sync Server URL",
+      "description": "Base URL of your Subtitle Sync Server instance. Leave empty to hide Subtitle Sync Server features.",
       "type": "textfield",
-      "required": false
+      "required": false,
+      "placeholder": "https://subtitles.example.com"
     },
     {
-      "name": "prowlarrApiKey",
-      "title": "Prowlarr API Key",
-      "description": "Settings \u2192 General",
+      "name": "absUrl",
+      "title": "Audiobookshelf URL",
+      "description": "Base URL of your Audiobookshelf instance. Leave empty to hide Audiobookshelf features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://audiobooks.example.com"
+    },
+    {
+      "name": "absToken",
+      "title": "Audiobookshelf API Token",
+      "description": "Settings → Users → your user → API token.",
       "type": "password",
       "required": false
     },
     {
-      "name": "chaptarrApiKey",
-      "title": "Chaptarr API Key",
-      "description": "Settings \u2192 General (books in Media Calendar)",
+      "name": "navidromeUrl",
+      "title": "Navidrome URL",
+      "description": "Base URL of your Navidrome instance. Leave empty to hide Navidrome features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://music.example.com"
+    },
+    {
+      "name": "navidromeUser",
+      "title": "Navidrome Username",
+      "description": "Any user; Subsonic token auth is used.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "admin"
+    },
+    {
+      "name": "navidromePassword",
+      "title": "Navidrome Password",
+      "description": "Password of that user.",
       "type": "password",
       "required": false
     },
     {
-      "name": "adguardUsername",
-      "title": "AdGuard Username",
-      "description": "AdGuard Home login",
+      "name": "immichUrl",
+      "title": "Immich URL",
+      "description": "Base URL of your Immich instance. Leave empty to hide Immich features.",
       "type": "textfield",
-      "required": false
+      "required": false,
+      "placeholder": "https://immich.example.com"
     },
     {
-      "name": "adguardPassword",
-      "title": "AdGuard Password",
-      "description": "Enables the AdGuard row on Homelab Home",
+      "name": "immichApiKey",
+      "title": "Immich API Key",
+      "description": "Account Settings → API Keys.",
       "type": "password",
       "required": false
     },
     {
       "name": "calibreUrl",
       "title": "Calibre-Web URL",
-      "description": "Leave empty for https://reader.bjelke.org",
+      "description": "Base URL of your Calibre-Web instance. Leave empty to hide Calibre-Web features.",
       "type": "textfield",
-      "required": false
+      "required": false,
+      "placeholder": "https://reader.example.com"
     },
     {
       "name": "calibreUser",
       "title": "Calibre-Web Username",
-      "description": "Default: admin",
+      "description": "Used for OPDS + Send-to-Kindle.",
       "type": "textfield",
       "required": false,
-      "default": "admin"
+      "placeholder": "admin"
     },
     {
       "name": "calibrePassword",
       "title": "Calibre-Web Password",
-      "description": "Used for OPDS (basic auth) and the Send-to-Kindle web session",
+      "description": "Password of that user.",
       "type": "password",
       "required": false
+    },
+    {
+      "name": "metubeUrl",
+      "title": "MeTube URL",
+      "description": "Base URL of your MeTube instance. Leave empty to hide MeTube features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://metube.example.com"
+    },
+    {
+      "name": "metubeFolders",
+      "title": "MeTube Destinations",
+      "description": "Comma-separated extra folders as folder|Label[|video]. Add |video to download video instead of opus audio. Example: music|Music,clips|Clips|video",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "music|Music,clips|Clips|video"
+    },
+    {
+      "name": "kumaUrl",
+      "title": "Uptime Kuma URL",
+      "description": "Base URL of your Uptime Kuma instance. Leave empty to hide Uptime Kuma features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://kuma.example.com"
+    },
+    {
+      "name": "kumaStatusSlug",
+      "title": "Uptime Kuma Status Page Slug",
+      "description": "Slug of a public status page (used when no API key is set).",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "home"
+    },
+    {
+      "name": "kumaApiKey",
+      "title": "Uptime Kuma API Key",
+      "description": "Settings → API Keys. With a key every monitor is read from /metrics, not just the status page.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "ntfyUrl",
+      "title": "ntfy URL",
+      "description": "Base URL of your ntfy instance. Leave empty to hide ntfy features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://ntfy.example.com"
+    },
+    {
+      "name": "ntfyTopics",
+      "title": "ntfy Topics",
+      "description": "Comma-separated topics to read.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "alerts,downloads"
+    },
+    {
+      "name": "adguardUrl",
+      "title": "AdGuard Home URL",
+      "description": "Base URL of your AdGuard Home instance. Leave empty to hide AdGuard Home features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://dns.example.com"
+    },
+    {
+      "name": "adguardUsername",
+      "title": "AdGuard Home Username",
+      "description": "Web UI username.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "admin"
+    },
+    {
+      "name": "adguardPassword",
+      "title": "AdGuard Home Password",
+      "description": "Web UI password.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "komodoUrl",
+      "title": "Komodo URL",
+      "description": "Base URL of your Komodo instance. Leave empty to hide Komodo features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://komodo.example.com"
+    },
+    {
+      "name": "komodoApiKey",
+      "title": "Komodo API Key",
+      "description": "Settings → Profile → API keys.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "komodoApiSecret",
+      "title": "Komodo API Secret",
+      "description": "Shown once when the key is created.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "backrestUrl",
+      "title": "Backrest URL",
+      "description": "Base URL of your Backrest instance. Leave empty to hide Backrest features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://backrest.example.com"
+    },
+    {
+      "name": "backrestUsername",
+      "title": "Backrest Username",
+      "description": "Web UI username.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "admin"
+    },
+    {
+      "name": "backrestPassword",
+      "title": "Backrest Password",
+      "description": "Web UI password.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "scrutinyUrl",
+      "title": "Scrutiny URL",
+      "description": "Base URL of your Scrutiny instance. Leave empty to hide Scrutiny features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://scrutiny.example.com"
+    },
+    {
+      "name": "speedtestUrl",
+      "title": "Speedtest Tracker URL",
+      "description": "Base URL of your Speedtest Tracker instance. Leave empty to hide Speedtest Tracker features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://speedtest.example.com"
+    },
+    {
+      "name": "fireflyUrl",
+      "title": "Firefly III URL",
+      "description": "Base URL of your Firefly III instance. Leave empty to hide Firefly III features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://firefly.example.com"
+    },
+    {
+      "name": "fireflyToken",
+      "title": "Firefly III Personal Access Token",
+      "description": "Options → Profile → OAuth → Personal Access Tokens.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "picoUrl",
+      "title": "Firefly Pico URL",
+      "description": "Base URL of your Firefly Pico instance. Leave empty to hide Firefly Pico features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://pico.example.com"
+    },
+    {
+      "name": "subscriptionsUrl",
+      "title": "Subscriptions JSON URL",
+      "description": "Optional URL of a subscriptions.json published by the companion firefly-sub-publish script (upcoming bills summary).",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://home.example.com/images/subscriptions.json"
+    },
+    {
+      "name": "forgejoUrl",
+      "title": "Forgejo / Gitea URL",
+      "description": "Base URL of your Forgejo / Gitea instance. Leave empty to hide Forgejo / Gitea features.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://git.example.com"
     }
   ],
   "dependencies": {
@@ -651,6 +813,12 @@
     "typecheck": "tsc --noEmit",
     "lint": "ray lint",
     "lint:local": "eslint src",
-    "fix-lint": "ray lint --fix"
-  }
+    "fix-lint": "ray lint --fix",
+    "gen:env": "node scripts/gen-env-example.mjs"
+  },
+  "categories": [
+    "Developer Tools",
+    "Media",
+    "Productivity"
+  ]
 }

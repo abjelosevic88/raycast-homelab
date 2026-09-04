@@ -1,4 +1,13 @@
-import { Action, ActionPanel, Color, Grid, Icon, showToast, Toast, Keyboard } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Grid,
+  Icon,
+  showToast,
+  Toast,
+  Keyboard,
+} from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import {
@@ -24,7 +33,8 @@ function yearOf(r: SearchResult): string | undefined {
 export default function Request() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<DiscoverCategory>("trending");
-  const { url, key } = jellyseerrPrefs();
+  const { url, key: apiKey } = jellyseerrPrefs();
+  const key = url && apiKey ? apiKey : "";
 
   const searching = query.trim().length >= 2;
   const { data, isLoading, revalidate, pagination } = useCachedPromise(
@@ -32,19 +42,26 @@ export default function Request() {
       async ({ page }: { page: number }) => {
         if (!hasKey) return { data: [] as SearchResult[], hasMore: false };
         const res =
-          q.trim().length < 2 ? await discoverMedia(cat, page + 1) : await searchMedia(q.trim(), page + 1);
+          q.trim().length < 2
+            ? await discoverMedia(cat, page + 1)
+            : await searchMedia(q.trim(), page + 1);
         return { data: res.results, hasMore: res.hasMore };
       },
     [query, category, Boolean(key)],
     {
       keepPreviousData: true,
       onError: (e) => {
-        void showToast({ style: Toast.Style.Failure, title: "Jellyseerr", message: e.message });
+        void showToast({
+          style: Toast.Style.Failure,
+          title: "Jellyseerr",
+          message: e.message,
+        });
       },
     },
   );
 
-  const categoryTitle = DISCOVER_CATEGORIES.find((c) => c.id === category)?.title ?? "Discover";
+  const categoryTitle =
+    DISCOVER_CATEGORIES.find((c) => c.id === category)?.title ?? "Discover";
 
   // discover pages can repeat titles across pages; drop duplicates so keys stay unique
   const seen = new Set<string>();
@@ -67,7 +84,11 @@ export default function Request() {
       fit={Grid.Fit.Fill}
       searchBarPlaceholder="Search movies & shows on Jellyseerr…"
       searchBarAccessory={
-        <Grid.Dropdown tooltip="Discover" value={category} onChange={(v) => setCategory(v as DiscoverCategory)}>
+        <Grid.Dropdown
+          tooltip="Discover"
+          value={category}
+          onChange={(v) => setCategory(v as DiscoverCategory)}
+        >
           {DISCOVER_CATEGORIES.map((c) => (
             <Grid.Dropdown.Item key={c.id} title={c.title} value={c.id} />
           ))}
@@ -78,7 +99,7 @@ export default function Request() {
         <Grid.EmptyView
           icon={{ source: Icon.Key, tintColor: Color.Orange }}
           title="Jellyseerr API key not set"
-          description="⌘K → Configure Extension → paste the admin API key"
+          description="⌘K → Configure Extension → set the Jellyseerr URL and admin API key"
         />
       )}
       <Grid.Section title={searching ? "Search Results" : categoryTitle}>
@@ -87,10 +108,25 @@ export default function Request() {
           const status = statusCode ? STATUS[statusCode] : undefined;
           const requestable = !status || statusCode === 1;
           // visible ownership marker on the tile itself
-          const mark = statusCode === 5 ? "✅ " : statusCode === 4 ? "🟡 " : statusCode === 2 || statusCode === 3 ? "⏳ " : "";
+          const mark =
+            statusCode === 5
+              ? "✅ "
+              : statusCode === 4
+                ? "🟡 "
+                : statusCode === 2 || statusCode === 3
+                  ? "⏳ "
+                  : "";
           const webUrl = `${url}/${r.mediaType}/${r.id}`;
-          const target = { mediaType: r.mediaType as "movie" | "tv", id: r.id, title: titleOf(r) };
-          const subtitle = [yearOf(r), r.mediaType === "tv" ? "TV" : "Movie", status?.label]
+          const target = {
+            mediaType: r.mediaType as "movie" | "tv",
+            id: r.id,
+            title: titleOf(r),
+          };
+          const subtitle = [
+            yearOf(r),
+            r.mediaType === "tv" ? "TV" : "Movie",
+            status?.label,
+          ]
             .filter(Boolean)
             .join(" · ");
           return (
@@ -99,7 +135,11 @@ export default function Request() {
               content={
                 r.posterPath
                   ? { source: `https://image.tmdb.org/t/p/w342${r.posterPath}` }
-                  : { source: r.mediaType === "tv" ? Icon.Monitor : Icon.FilmStrip, tintColor: Color.SecondaryText }
+                  : {
+                      source:
+                        r.mediaType === "tv" ? Icon.Monitor : Icon.FilmStrip,
+                      tintColor: Color.SecondaryText,
+                    }
               }
               title={`${mark}${titleOf(r)}`}
               subtitle={subtitle}
@@ -108,16 +148,26 @@ export default function Request() {
                   <Action.Push
                     title="Show Details"
                     icon={Icon.Sidebar}
-                    target={<MediaDetail mediaType={target.mediaType} id={r.id} onRequested={revalidate} />}
+                    target={
+                      <MediaDetail
+                        mediaType={target.mediaType}
+                        id={r.id}
+                        onRequested={revalidate}
+                      />
+                    }
                   />
                   {requestable && (
                     <Action
-                      title={r.mediaType === "tv" ? "Request All Seasons" : "Request"}
+                      title={
+                        r.mediaType === "tv" ? "Request All Seasons" : "Request"
+                      }
                       icon={Icon.Download}
                       onAction={() => doRequest(target, { onDone: revalidate })}
                     />
                   )}
-                  {requestable && <ProfileSubmenu target={target} onDone={revalidate} />}
+                  {requestable && (
+                    <ProfileSubmenu target={target} onDone={revalidate} />
+                  )}
                   <Action.OpenInBrowser
                     title="Open in Jellyseerr"
                     url={webUrl}

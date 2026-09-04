@@ -7,7 +7,8 @@ import {
   Icon,
   List,
   showToast,
-  Toast, Keyboard,
+  Toast,
+  Keyboard,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
@@ -23,7 +24,13 @@ import {
 } from "./jellyseerr-api";
 import MediaDetail from "./media-detail";
 
-const COLORS = { green: Color.Green, orange: Color.Orange, blue: Color.Blue, red: Color.Red, yellow: Color.Yellow };
+const COLORS = {
+  green: Color.Green,
+  orange: Color.Orange,
+  blue: Color.Blue,
+  red: Color.Red,
+  yellow: Color.Yellow,
+};
 
 const FILTERS: { id: RequestFilter; title: string }[] = [
   { id: "all", title: "All Requests" },
@@ -36,7 +43,8 @@ const FILTERS: { id: RequestFilter; title: string }[] = [
 
 export default function Requests() {
   const [filter, setFilter] = useState<RequestFilter>("all");
-  const { url, key } = jellyseerrPrefs();
+  const { url, key: apiKey } = jellyseerrPrefs();
+  const key = url && apiKey ? apiKey : "";
 
   const { data, isLoading, revalidate, pagination } = useCachedPromise(
     (f: RequestFilter, hasKey: boolean) =>
@@ -49,8 +57,14 @@ export default function Requests() {
     { keepPreviousData: true },
   );
 
-  async function act(r: MediaRequestItem, action: "approve" | "decline" | "retry") {
-    const toast = await showToast({ style: Toast.Style.Animated, title: `${action} ${r.title}…` });
+  async function act(
+    r: MediaRequestItem,
+    action: "approve" | "decline" | "retry",
+  ) {
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: `${action} ${r.title}…`,
+    });
     try {
       await actOnRequest(r.id, action);
       toast.style = Toast.Style.Success;
@@ -66,16 +80,27 @@ export default function Requests() {
   async function remove(r: MediaRequestItem) {
     const ok = await confirmAlert({
       title: `Delete request for "${r.title}"?`,
-      message: "This removes the request from Jellyseerr. Files already downloaded are not touched.",
-      primaryAction: { title: "Delete Request", style: Alert.ActionStyle.Destructive },
+      message:
+        "This removes the request from Jellyseerr. Files already downloaded are not touched.",
+      primaryAction: {
+        title: "Delete Request",
+        style: Alert.ActionStyle.Destructive,
+      },
     });
     if (!ok) return;
     try {
       await deleteRequest(r.id);
-      await showToast({ style: Toast.Style.Success, title: `Deleted request: ${r.title}` });
+      await showToast({
+        style: Toast.Style.Success,
+        title: `Deleted request: ${r.title}`,
+      });
       revalidate();
     } catch (e) {
-      await showToast({ style: Toast.Style.Failure, title: "Delete failed", message: String(e) });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Delete failed",
+        message: String(e),
+      });
     }
   }
 
@@ -85,7 +110,11 @@ export default function Requests() {
       pagination={pagination}
       searchBarPlaceholder="Filter requests…"
       searchBarAccessory={
-        <List.Dropdown tooltip="Status" value={filter} onChange={(v) => setFilter(v as RequestFilter)}>
+        <List.Dropdown
+          tooltip="Status"
+          value={filter}
+          onChange={(v) => setFilter(v as RequestFilter)}
+        >
           {FILTERS.map((f) => (
             <List.Dropdown.Item key={f.id} title={f.title} value={f.id} />
           ))}
@@ -96,7 +125,7 @@ export default function Requests() {
         <List.EmptyView
           icon={{ source: Icon.Key, tintColor: Color.Orange }}
           title="Jellyseerr API key not set"
-          description="⌘K → Configure Extension → paste the admin API key"
+          description="⌘K → Configure Extension → set the Jellyseerr URL and admin API key"
         />
       )}
       {data?.map((r) => {
@@ -118,11 +147,29 @@ export default function Requests() {
             title={r.title}
             subtitle={`${r.year ?? ""} · by ${r.requestedBy} · ${r.createdAt}`}
             accessories={[
-              ...(r.seasons.length > 0 ? [{ tag: `S${r.seasons.join(", S")}` }] : []),
-              ...(mediaStatus && !pending
-                ? [{ tag: { value: mediaStatus.label, color: COLORS[mediaStatus.color] } }]
+              ...(r.seasons.length > 0
+                ? [{ tag: `S${r.seasons.join(", S")}` }]
                 : []),
-              ...(reqStatus ? [{ tag: { value: reqStatus.label, color: COLORS[reqStatus.color] } }] : []),
+              ...(mediaStatus && !pending
+                ? [
+                    {
+                      tag: {
+                        value: mediaStatus.label,
+                        color: COLORS[mediaStatus.color],
+                      },
+                    },
+                  ]
+                : []),
+              ...(reqStatus
+                ? [
+                    {
+                      tag: {
+                        value: reqStatus.label,
+                        color: COLORS[reqStatus.color],
+                      },
+                    },
+                  ]
+                : []),
             ]}
             actions={
               <ActionPanel>
@@ -140,11 +187,23 @@ export default function Requests() {
                     onAction={() => act(r, "decline")}
                   />
                 )}
-                {failed && <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => act(r, "retry")} />}
+                {failed && (
+                  <Action
+                    title="Retry"
+                    icon={Icon.ArrowClockwise}
+                    onAction={() => act(r, "retry")}
+                  />
+                )}
                 <Action.Push
                   title="Show Details"
                   icon={Icon.Sidebar}
-                  target={<MediaDetail mediaType={r.mediaType} id={r.tmdbId} onRequested={revalidate} />}
+                  target={
+                    <MediaDetail
+                      mediaType={r.mediaType}
+                      id={r.tmdbId}
+                      onRequested={revalidate}
+                    />
+                  }
                 />
                 <Action.OpenInBrowser
                   title="Open in Jellyseerr"

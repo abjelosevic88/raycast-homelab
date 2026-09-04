@@ -1,4 +1,13 @@
-import { Action, ActionPanel, Color, Icon, List, showToast, Toast, Keyboard } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Icon,
+  List,
+  showToast,
+  Toast,
+  Keyboard,
+} from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
 import {
@@ -22,14 +31,18 @@ const TYPE_STYLE: Record<string, { icon: Icon; color: Color }> = {
 export default function Transaction() {
   const [query, setQuery] = useState("");
   const hasToken = hasFireflyToken();
-  const { data, isLoading } = useCachedPromise(async (ok: boolean) => (ok ? await loadAssistantData() : undefined), [
-    hasToken,
-  ]);
+  const { data, isLoading } = useCachedPromise(
+    async (ok: boolean) => (ok ? await loadAssistantData() : undefined),
+    [hasToken],
+  );
 
   const parsed = data ? parseAssistant(query, data.templates) : null;
 
   async function create(p: ParsedInput, d: AssistantData) {
-    const toast = await showToast({ style: Toast.Style.Animated, title: `Adding ${p.description}…` });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: `Adding ${p.description}…`,
+    });
     try {
       const summary = await createTransaction(p, d);
       toast.style = Toast.Style.Success;
@@ -43,7 +56,10 @@ export default function Transaction() {
     }
   }
 
-  function summarize(p: ParsedInput, d: AssistantData): { title: string; accessories: List.Item.Accessory[] } {
+  function summarize(
+    p: ParsedInput,
+    d: AssistantData,
+  ): { title: string; accessories: List.Item.Accessory[] } {
     const t = p.template;
     const account = t.sourceId ? d.accounts[t.sourceId] : undefined;
     let amountText = "no amount";
@@ -51,21 +67,36 @@ export default function Transaction() {
       const cur = p.currency ?? account?.currency;
       amountText = `${p.amount}${cur ? ` ${cur}` : ""}`;
       if (p.currency && account && p.currency !== account.currency) {
-        const converted = convertAmount(p.amount, p.currency, account.currency, d.rates);
+        const converted = convertAmount(
+          p.amount,
+          p.currency,
+          account.currency,
+          d.rates,
+        );
         amountText +=
           converted !== undefined
             ? ` ≈ ${converted.toFixed(2)} ${account.currency}`
             : ` (no ${p.currency}→${account.currency} rate!)`;
       }
     }
-    const when = p.dayOffset === 0 ? "today" : `${p.dayOffset > 0 ? "+" : ""}${p.dayOffset}d`;
+    const when =
+      p.dayOffset === 0
+        ? "today"
+        : `${p.dayOffset > 0 ? "+" : ""}${p.dayOffset}d`;
     return {
       title: `${p.description} — ${amountText}`,
       accessories: [
-        ...(t.categoryId && d.categoryNames[t.categoryId] ? [{ tag: d.categoryNames[t.categoryId] }] : []),
+        ...(t.categoryId && d.categoryNames[t.categoryId]
+          ? [{ tag: d.categoryNames[t.categoryId] }]
+          : []),
         ...(account ? [{ text: account.name }] : []),
         { text: when },
-        { tag: { value: t.type, color: TYPE_STYLE[t.type]?.color ?? Color.SecondaryText } },
+        {
+          tag: {
+            value: t.type,
+            color: TYPE_STYLE[t.type]?.color ?? Color.SecondaryText,
+          },
+        },
       ],
     };
   }
@@ -73,7 +104,9 @@ export default function Transaction() {
   const templates = data?.templates ?? [];
   const shown =
     query.trim().length > 0 && !parsed
-      ? templates.filter((t) => t.name.toLowerCase().includes(query.trim().toLowerCase()))
+      ? templates.filter((t) =>
+          t.name.toLowerCase().includes(query.trim().toLowerCase()),
+        )
       : templates;
 
   return (
@@ -88,7 +121,7 @@ export default function Transaction() {
         <List.EmptyView
           icon={{ source: Icon.Key, tintColor: Color.Orange }}
           title="Firefly token not set"
-          description="⌘K → Configure Extension → paste a Firefly III personal access token"
+          description="⌘K → Configure Extension → set the Firefly III URL and a personal access token"
         />
       )}
       {parsed && data && (
@@ -98,7 +131,11 @@ export default function Transaction() {
             {...summarize(parsed, data)}
             actions={
               <ActionPanel>
-                <Action title="Add Transaction" icon={Icon.Check} onAction={() => create(parsed, data)} />
+                <Action
+                  title="Add Transaction"
+                  icon={Icon.Check}
+                  onAction={() => create(parsed, data)}
+                />
               </ActionPanel>
             }
           />
@@ -130,7 +167,11 @@ export default function Transaction() {
                     ? [{ tag: data.categoryNames[t.categoryId] }]
                     : []),
                   ...(t.amount
-                    ? [{ text: `${t.amount} ${t.defaultCurrency ?? account?.currency ?? ""}` }]
+                    ? [
+                        {
+                          text: `${t.amount} ${t.defaultCurrency ?? account?.currency ?? ""}`,
+                        },
+                      ]
                     : t.defaultCurrency
                       ? [{ tag: t.defaultCurrency }]
                       : []),

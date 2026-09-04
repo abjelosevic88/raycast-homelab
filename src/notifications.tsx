@@ -1,7 +1,15 @@
 import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useEffect, useState } from "react";
-import { loadNotifications, Notification, NTFY_URL, ntfyPrefs, timeAgo } from "./notifications-api";
+import {
+  hasNtfy,
+  loadNotifications,
+  Notification,
+  NTFY_URL,
+  ntfyPrefs,
+  timeAgo,
+} from "./notifications-api";
+import NotConfigured from "./not-configured";
 
 const POLL_MS = 30000;
 
@@ -14,14 +22,23 @@ const KIND_META: Record<Notification["kind"], { icon: Icon; color: Color }> = {
 export default function Notifications() {
   const [topic, setTopic] = useState("all");
   const { topics } = ntfyPrefs();
-  const { data, isLoading, revalidate } = useCachedPromise(loadNotifications, [], { keepPreviousData: true });
+  const configured = hasNtfy();
+  const { data, isLoading, revalidate } = useCachedPromise(
+    async (ok: boolean) => (ok ? await loadNotifications() : []),
+    [configured],
+    {
+      keepPreviousData: true,
+    },
+  );
 
   useEffect(() => {
     const t = setInterval(revalidate, POLL_MS);
     return () => clearInterval(t);
   }, [revalidate]);
 
-  const shown = (data ?? []).filter((n) => topic === "all" || n.topic === topic);
+  const shown = (data ?? []).filter(
+    (n) => topic === "all" || n.topic === topic,
+  );
 
   return (
     <List
@@ -53,7 +70,9 @@ export default function Notifications() {
                     <List.Item.Detail.Metadata.TagList title="Topic">
                       <List.Item.Detail.Metadata.TagList.Item
                         text={n.topic}
-                        color={n.topic === "downloads" ? Color.Blue : Color.Orange}
+                        color={
+                          n.topic === "downloads" ? Color.Blue : Color.Orange
+                        }
                       />
                     </List.Item.Detail.Metadata.TagList>
                     <List.Item.Detail.Metadata.Label
@@ -61,7 +80,10 @@ export default function Notifications() {
                       text={`${new Date(n.time * 1000).toLocaleString()} (${timeAgo(n.time)})`}
                     />
                     {n.priority !== undefined && n.priority !== 3 && (
-                      <List.Item.Detail.Metadata.Label title="Priority" text={String(n.priority)} />
+                      <List.Item.Detail.Metadata.Label
+                        title="Priority"
+                        text={String(n.priority)}
+                      />
                     )}
                   </List.Item.Detail.Metadata>
                 }
@@ -69,7 +91,10 @@ export default function Notifications() {
             }
             actions={
               <ActionPanel>
-                <Action.CopyToClipboard title="Copy Message" content={`${n.title}\n\n${n.message}`} />
+                <Action.CopyToClipboard
+                  title="Copy Message"
+                  content={`${n.title}\n\n${n.message}`}
+                />
                 <Action.OpenInBrowser title="Open Ntfy" url={NTFY_URL} />
                 <Action
                   title="Refresh"
@@ -82,8 +107,13 @@ export default function Notifications() {
           />
         );
       })}
-      {!isLoading && shown.length === 0 && (
-        <List.EmptyView icon={Icon.BellDisabled} title="No notifications" description="Quiet week on the homelab" />
+      {!configured && <NotConfigured service="ntfy" needs="URL and topics" />}
+      {configured && !isLoading && shown.length === 0 && (
+        <List.EmptyView
+          icon={Icon.BellDisabled}
+          title="No notifications"
+          description="Quiet week on the homelab"
+        />
       )}
     </List>
   );

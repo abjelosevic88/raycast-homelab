@@ -1,24 +1,18 @@
-import { getPreferenceValues } from "@raycast/api";
+import { has, optionalUrl, requireUrl, setting } from "./config";
 
-interface Preferences {
-  absUrl?: string;
-  absToken?: string;
-}
-
-export const ABS_URL = "https://audiobooks.bjelke.org";
+export const ABS_URL = optionalUrl("absUrl");
 const TIMEOUT_MS = 10000;
 const PAGE_SIZE = 42;
 
 function prefs() {
-  const p = getPreferenceValues<Preferences>();
   return {
-    url: !p.absUrl || p.absUrl.includes(".ts.net") ? ABS_URL : p.absUrl.replace(/\/+$/, ""),
-    token: p.absToken ?? "",
+    url: requireUrl("absUrl", "Audiobookshelf"),
+    token: setting("absToken"),
   };
 }
 
 export function hasAbsToken(): boolean {
-  return Boolean(prefs().token);
+  return has("absUrl", "absToken");
 }
 
 async function api<T>(path: string): Promise<T> {
@@ -46,12 +40,18 @@ export interface AbsItem {
 
 interface RawItem {
   id: string;
-  media?: { metadata?: { title?: string; authorName?: string; author?: string } };
+  media?: {
+    metadata?: { title?: string; authorName?: string; author?: string };
+  };
 }
 
 function mapItem(r: RawItem): AbsItem {
   const md = r.media?.metadata ?? {};
-  return { id: r.id, title: md.title ?? "Untitled", author: md.authorName ?? md.author ?? "" };
+  return {
+    id: r.id,
+    title: md.title ?? "Untitled",
+    author: md.authorName ?? md.author ?? "",
+  };
 }
 
 export async function listLibraries(): Promise<AbsLibrary[]> {
@@ -59,7 +59,10 @@ export async function listLibraries(): Promise<AbsLibrary[]> {
   return r.libraries;
 }
 
-export async function listItems(libraryId: string, page: number): Promise<{ items: AbsItem[]; hasMore: boolean }> {
+export async function listItems(
+  libraryId: string,
+  page: number,
+): Promise<{ items: AbsItem[]; hasMore: boolean }> {
   const r = await api<{ results: RawItem[]; total: number }>(
     `/api/libraries/${libraryId}/items?limit=${PAGE_SIZE}&page=${page}&sort=addedAt&desc=1`,
   );
@@ -67,22 +70,37 @@ export async function listItems(libraryId: string, page: number): Promise<{ item
   return { items, hasMore: (page + 1) * PAGE_SIZE < r.total };
 }
 
-export async function searchLibrary(libraryId: string, q: string): Promise<AbsItem[]> {
+export async function searchLibrary(
+  libraryId: string,
+  q: string,
+): Promise<AbsItem[]> {
   const r = await api<{
     book?: { libraryItem: RawItem }[];
     podcast?: { libraryItem: RawItem }[];
   }>(`/api/libraries/${libraryId}/search?q=${encodeURIComponent(q)}&limit=30`);
-  return [...(r.book ?? []), ...(r.podcast ?? [])].map((x) => mapItem(x.libraryItem));
+  return [...(r.book ?? []), ...(r.podcast ?? [])].map((x) =>
+    mapItem(x.libraryItem),
+  );
 }
 
 export async function continueListening(): Promise<AbsItem[]> {
   const [inProgress, me] = await Promise.all([
     api<{ libraryItems: RawItem[] }>("/api/me/items-in-progress?limit=20"),
-    api<{ mediaProgress?: { libraryItemId: string; progress: number; isFinished: boolean }[] }>("/api/me"),
+    api<{
+      mediaProgress?: {
+        libraryItemId: string;
+        progress: number;
+        isFinished: boolean;
+      }[];
+    }>("/api/me"),
   ]);
   const progressById = new Map<string, number>();
   for (const mp of me.mediaProgress ?? []) {
-    if (!mp.isFinished) progressById.set(mp.libraryItemId, Math.max(progressById.get(mp.libraryItemId) ?? 0, mp.progress));
+    if (!mp.isFinished)
+      progressById.set(
+        mp.libraryItemId,
+        Math.max(progressById.get(mp.libraryItemId) ?? 0, mp.progress),
+      );
   }
   const seen = new Set<string>();
   const out: AbsItem[] = [];

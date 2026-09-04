@@ -1,4 +1,13 @@
-import { Action, ActionPanel, Color, Icon, Keyboard, List, showToast, Toast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Icon,
+  Keyboard,
+  List,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
 import {
@@ -14,10 +23,16 @@ import {
 
 const POLL_MS = 15000;
 
-export const TOGGLE_SHORTCUT: Keyboard.Shortcut = { modifiers: ["cmd"], key: "t" };
+export const TOGGLE_SHORTCUT: Keyboard.Shortcut = {
+  modifiers: ["cmd"],
+  key: "t",
+};
 
 // shared by the dashboard and the Home row
-export async function toggleProtection(current: boolean | undefined, snoozeMinutes?: number): Promise<void> {
+export async function toggleProtection(
+  current: boolean | undefined,
+  snoozeMinutes?: number,
+): Promise<void> {
   const enable = current === false;
   try {
     await setProtection(enable, enable ? undefined : snoozeMinutes);
@@ -30,11 +45,18 @@ export async function toggleProtection(current: boolean | undefined, snoozeMinut
           : "AdGuard protection disabled",
     });
   } catch (e) {
-    await showToast({ style: Toast.Style.Failure, title: "AdGuard", message: String(e instanceof Error ? e.message : e) });
+    await showToast({
+      style: Toast.Style.Failure,
+      title: "AdGuard",
+      message: String(e instanceof Error ? e.message : e),
+    });
   }
 }
 
-export function ProtectionActions(props: { stats?: AdguardStats; onDone: () => void }) {
+export function ProtectionActions(props: {
+  stats?: AdguardStats;
+  onDone: () => void;
+}) {
   const on = props.stats?.protectionEnabled;
   return (
     <>
@@ -45,15 +67,27 @@ export function ProtectionActions(props: { stats?: AdguardStats; onDone: () => v
         onAction={() => toggleProtection(on, 10).then(props.onDone)}
       />
       {on && (
-        <ActionPanel.Submenu title="Pause for…" icon={Icon.Clock} shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}>
+        <ActionPanel.Submenu
+          title="Pause for…"
+          icon={Icon.Clock}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
+        >
           {[1, 10, 30, 60, 480].map((m) => (
             <Action
               key={m}
-              title={m >= 60 ? `${m / 60} Hour${m > 60 ? "s" : ""}` : `${m} Minute${m > 1 ? "s" : ""}`}
+              title={
+                m >= 60
+                  ? `${m / 60} Hour${m > 60 ? "s" : ""}`
+                  : `${m} Minute${m > 1 ? "s" : ""}`
+              }
               onAction={() => toggleProtection(true, m).then(props.onDone)}
             />
           ))}
-          <Action title="Until Resumed Manually" icon={Icon.Stop} onAction={() => toggleProtection(true).then(props.onDone)} />
+          <Action
+            title="Until Resumed Manually"
+            icon={Icon.Stop}
+            onAction={() => toggleProtection(true).then(props.onDone)}
+          />
         </ActionPanel.Submenu>
       )}
     </>
@@ -63,19 +97,35 @@ export function ProtectionActions(props: { stats?: AdguardStats; onDone: () => v
 export default function AdGuard() {
   const hasCreds = hasAdguardCreds();
   const onError = (e: Error) => {
-    void showToast({ style: Toast.Style.Failure, title: "AdGuard", message: e.message });
+    void showToast({
+      style: Toast.Style.Failure,
+      title: "AdGuard",
+      message: e.message,
+    });
   };
-  const stats = useCachedPromise(async (ok: boolean) => (ok ? await loadAdguard() : undefined), [hasCreds], {
-    keepPreviousData: true,
-    onError,
-  });
-  const log = useCachedPromise(async (ok: boolean) => (ok ? await loadQueryLog(30, true) : []), [hasCreds], {
-    keepPreviousData: true,
-    onError,
-  });
-  const filters = useCachedPromise(async (ok: boolean) => (ok ? await loadFilters() : undefined), [hasCreds], {
-    keepPreviousData: true,
-  });
+  const stats = useCachedPromise(
+    async (ok: boolean) => (ok ? await loadAdguard() : undefined),
+    [hasCreds],
+    {
+      keepPreviousData: true,
+      onError,
+    },
+  );
+  const log = useCachedPromise(
+    async (ok: boolean) => (ok ? await loadQueryLog(30, true) : []),
+    [hasCreds],
+    {
+      keepPreviousData: true,
+      onError,
+    },
+  );
+  const filters = useCachedPromise(
+    async (ok: boolean) => (ok ? await loadFilters() : undefined),
+    [hasCreds],
+    {
+      keepPreviousData: true,
+    },
+  );
 
   const refresh = () => {
     stats.revalidate();
@@ -90,8 +140,17 @@ export default function AdGuard() {
   const actions = (
     <ActionPanel>
       <ProtectionActions stats={s} onDone={refresh} />
-      <Action.OpenInBrowser title="Open AdGuard Home" url={ADGUARD_URL} shortcut={Keyboard.Shortcut.Common.Open} />
-      <Action title="Refresh" icon={Icon.ArrowClockwise} shortcut={Keyboard.Shortcut.Common.Refresh} onAction={refresh} />
+      <Action.OpenInBrowser
+        title="Open AdGuard Home"
+        url={ADGUARD_URL}
+        shortcut={Keyboard.Shortcut.Common.Open}
+      />
+      <Action
+        title="Refresh"
+        icon={Icon.ArrowClockwise}
+        shortcut={Keyboard.Shortcut.Common.Refresh}
+        onAction={refresh}
+      />
     </ActionPanel>
   );
 
@@ -103,24 +162,38 @@ export default function AdGuard() {
   return (
     <List
       isLoading={stats.isLoading || log.isLoading}
-      navigationTitle={s ? `AdGuard — ${s.protectionEnabled ? "ON" : "PAUSED"}` : "AdGuard"}
+      navigationTitle={
+        s ? `AdGuard — ${s.protectionEnabled ? "ON" : "PAUSED"}` : "AdGuard"
+      }
       searchBarPlaceholder="Filter…"
     >
       {!hasCreds && (
         <List.EmptyView
           icon={{ source: Icon.Key, tintColor: Color.Orange }}
           title="AdGuard login not set"
-          description="⌘K → Configure Extension → AdGuard username + password"
+          description="⌘K → Configure Extension → set the AdGuard Home URL, username and password"
         />
       )}
       {s && (
         <List.Section title="Protection">
           <List.Item
-            icon={{ source: Icon.Shield, tintColor: s.protectionEnabled ? Color.Green : Color.Orange }}
-            title={s.protectionEnabled ? "Protection ON" : `Protection PAUSED${pausedUntil}`}
+            icon={{
+              source: Icon.Shield,
+              tintColor: s.protectionEnabled ? Color.Green : Color.Orange,
+            }}
+            title={
+              s.protectionEnabled
+                ? "Protection ON"
+                : `Protection PAUSED${pausedUntil}`
+            }
             subtitle={`⌘T to ${s.protectionEnabled ? "pause 10 min" : "resume"} · ⌘⇧T pause for…`}
             accessories={[
-              { tag: { value: s.protectionEnabled ? "filtering" : "bypassed", color: s.protectionEnabled ? Color.Green : Color.Orange } },
+              {
+                tag: {
+                  value: s.protectionEnabled ? "filtering" : "bypassed",
+                  color: s.protectionEnabled ? Color.Green : Color.Orange,
+                },
+              },
               { text: `v${s.version.replace(/^v/, "")}` },
             ]}
             actions={actions}
@@ -139,11 +212,20 @@ export default function AdGuard() {
           <List.Item
             icon={{ source: Icon.BarChart, tintColor: Color.Blue }}
             title={`${fmtCount(s.queries)} queries`}
-            accessories={[{ text: `${fmtCount(s.blocked)} blocked` }, { tag: { value: `${s.blockedPct.toFixed(1)}%`, color: Color.Red } }]}
+            accessories={[
+              { text: `${fmtCount(s.blocked)} blocked` },
+              {
+                tag: { value: `${s.blockedPct.toFixed(1)}%`, color: Color.Red },
+              },
+            ]}
             actions={actions}
           />
           {s.safeBrowsing > 0 && (
-            <List.Item icon={{ source: Icon.Bug, tintColor: Color.Red }} title={`${fmtCount(s.safeBrowsing)} safe-browsing blocks`} actions={actions} />
+            <List.Item
+              icon={{ source: Icon.Bug, tintColor: Color.Red }}
+              title={`${fmtCount(s.safeBrowsing)} safe-browsing blocks`}
+              actions={actions}
+            />
           )}
         </List.Section>
       )}
@@ -157,9 +239,15 @@ export default function AdGuard() {
               accessories={[{ text: fmtCount(d.count) }]}
               actions={
                 <ActionPanel>
-                  <Action.CopyToClipboard title="Copy Domain" content={d.name} />
+                  <Action.CopyToClipboard
+                    title="Copy Domain"
+                    content={d.name}
+                  />
                   <ProtectionActions stats={s} onDone={refresh} />
-                  <Action.OpenInBrowser title="Open AdGuard Home" url={ADGUARD_URL} />
+                  <Action.OpenInBrowser
+                    title="Open AdGuard Home"
+                    url={ADGUARD_URL}
+                  />
                 </ActionPanel>
               }
             />
@@ -172,8 +260,16 @@ export default function AdGuard() {
             <List.Item
               key={`c-${c.name}`}
               icon={{
-                source: c.label === "docker container" ? Icon.Box : c.label ? Icon.Devices : Icon.QuestionMarkCircle,
-                tintColor: c.label && c.label !== "docker container" ? Color.Blue : Color.SecondaryText,
+                source:
+                  c.label === "docker container"
+                    ? Icon.Box
+                    : c.label
+                      ? Icon.Devices
+                      : Icon.QuestionMarkCircle,
+                tintColor:
+                  c.label && c.label !== "docker container"
+                    ? Color.Blue
+                    : Color.SecondaryText,
               }}
               title={c.label ?? c.name}
               subtitle={c.label ? c.name : undefined}
@@ -182,7 +278,10 @@ export default function AdGuard() {
                 <ActionPanel>
                   <Action.CopyToClipboard title="Copy IP" content={c.name} />
                   <ProtectionActions stats={s} onDone={refresh} />
-                  <Action.OpenInBrowser title="Open AdGuard Clients" url={`${ADGUARD_URL}/#clients`} />
+                  <Action.OpenInBrowser
+                    title="Open AdGuard Clients"
+                    url={`${ADGUARD_URL}/#clients`}
+                  />
                 </ActionPanel>
               }
             />
@@ -211,14 +310,36 @@ export default function AdGuard() {
               title={e.domain}
               subtitle={e.clientName ?? e.client}
               accessories={[
-                ...(e.rule ? [{ tag: e.rule.length > 28 ? `${e.rule.slice(0, 28)}…` : e.rule, tooltip: e.rule }] : []),
-                { text: new Date(e.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) },
+                ...(e.rule
+                  ? [
+                      {
+                        tag:
+                          e.rule.length > 28
+                            ? `${e.rule.slice(0, 28)}…`
+                            : e.rule,
+                        tooltip: e.rule,
+                      },
+                    ]
+                  : []),
+                {
+                  text: new Date(e.time).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  }),
+                },
               ]}
               actions={
                 <ActionPanel>
-                  <Action.CopyToClipboard title="Copy Domain" content={e.domain} />
+                  <Action.CopyToClipboard
+                    title="Copy Domain"
+                    content={e.domain}
+                  />
                   <ProtectionActions stats={s} onDone={refresh} />
-                  <Action.OpenInBrowser title="Open Query Log" url={`${ADGUARD_URL}/#logs`} />
+                  <Action.OpenInBrowser
+                    title="Open Query Log"
+                    url={`${ADGUARD_URL}/#logs`}
+                  />
                 </ActionPanel>
               }
             />
@@ -233,7 +354,10 @@ export default function AdGuard() {
           {filters.data.filters.map((f) => (
             <List.Item
               key={f.name}
-              icon={{ source: f.enabled ? Icon.CheckCircle : Icon.Circle, tintColor: f.enabled ? Color.Green : Color.SecondaryText }}
+              icon={{
+                source: f.enabled ? Icon.CheckCircle : Icon.Circle,
+                tintColor: f.enabled ? Color.Green : Color.SecondaryText,
+              }}
               title={f.name}
               subtitle={f.lastUpdated ? `updated ${f.lastUpdated}` : undefined}
               accessories={[{ text: `${fmtCount(f.rules)} rules` }]}

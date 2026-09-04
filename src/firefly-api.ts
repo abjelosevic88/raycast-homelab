@@ -1,35 +1,27 @@
-import { getPreferenceValues } from "@raycast/api";
+import { has, requireUrl, setting, urlGroup } from "./config";
 
-interface Preferences {
-  fireflyUrl?: string;
-  picoUrl?: string;
-  fireflyToken?: string;
-}
-
-export const FIREFLY_URLS = {
-  core: "https://firefly.bjelke.org",
-  pico: "https://pico.bjelke.org",
-};
+export const FIREFLY_URLS = urlGroup({
+  core: "fireflyUrl",
+  pico: "picoUrl",
+});
 
 const TIMEOUT_MS = 10000;
 
-function prefs() {
-  const p = getPreferenceValues<Preferences>();
-  const pick = (v: string | undefined, fb: string) => (!v || v.includes(".ts.net") ? fb : v.replace(/\/+$/, ""));
-  return {
-    core: pick(p.fireflyUrl, FIREFLY_URLS.core),
-    pico: pick(p.picoUrl, FIREFLY_URLS.pico),
-    token: p.fireflyToken ?? "",
-  };
-}
-
 export function hasFireflyToken(): boolean {
-  return Boolean(prefs().token);
+  return has("fireflyUrl", "fireflyToken");
 }
 
-async function apiFetch<T>(base: "core" | "pico", path: string, init?: RequestInit): Promise<T> {
-  const { core, pico, token } = prefs();
-  const res = await fetch(`${base === "core" ? core : pico}${path}`, {
+async function apiFetch<T>(
+  base: "core" | "pico",
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const root =
+    base === "core"
+      ? requireUrl("fireflyUrl", "Firefly III")
+      : requireUrl("picoUrl", "Firefly Pico");
+  const token = setting("fireflyToken");
+  const res = await fetch(`${root}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
@@ -90,14 +82,28 @@ interface RawPicoTemplate {
 
 export async function loadAssistantData(): Promise<AssistantData> {
   const [tpl, tags, cats, accts, ratesRaw] = await Promise.all([
-    apiFetch<{ data: RawPicoTemplate[] }>("pico", "/api/transaction-templates?limit=200"),
-    apiFetch<{ data: { id: string; attributes: { tag: string } }[] }>("core", "/api/v1/tags?limit=200"),
-    apiFetch<{ data: { id: string; attributes: { name: string } }[] }>("core", "/api/v1/categories?limit=200"),
-    apiFetch<{ data: { id: string; attributes: { name: string; currency_code: string } }[] }>(
-      "core",
-      "/api/v1/accounts?type=asset&limit=100",
+    apiFetch<{ data: RawPicoTemplate[] }>(
+      "pico",
+      "/api/transaction-templates?limit=200",
     ),
-    apiFetch<{ data: RawRate[] }>("core", "/api/v1/exchange-rates?limit=200").catch(() => ({ data: [] as RawRate[] })),
+    apiFetch<{ data: { id: string; attributes: { tag: string } }[] }>(
+      "core",
+      "/api/v1/tags?limit=200",
+    ),
+    apiFetch<{ data: { id: string; attributes: { name: string } }[] }>(
+      "core",
+      "/api/v1/categories?limit=200",
+    ),
+    apiFetch<{
+      data: {
+        id: string;
+        attributes: { name: string; currency_code: string };
+      }[];
+    }>("core", "/api/v1/accounts?type=asset&limit=100"),
+    apiFetch<{ data: RawRate[] }>(
+      "core",
+      "/api/v1/exchange-rates?limit=200",
+    ).catch(() => ({ data: [] as RawRate[] })),
   ]);
 
   const rates: Record<string, number> = {};
@@ -114,7 +120,11 @@ export async function loadAssistantData(): Promise<AssistantData> {
   const categoryNames: Record<number, string> = {};
   for (const c of cats.data) categoryNames[Number(c.id)] = c.attributes.name;
   const accounts: Record<number, { name: string; currency: string }> = {};
-  for (const a of accts.data) accounts[Number(a.id)] = { name: a.attributes.name, currency: a.attributes.currency_code };
+  for (const a of accts.data)
+    accounts[Number(a.id)] = {
+      name: a.attributes.name,
+      currency: a.attributes.currency_code,
+    };
 
   return {
     templates: tpl.data.map((t) => ({
@@ -128,7 +138,9 @@ export async function loadAssistantData(): Promise<AssistantData> {
       description: t.description || t.name,
       notes: t.notes ?? undefined,
       tagIds: (t.tags ?? []).map((x) => x.tag_id),
-      defaultCurrency: t.notes?.match(/\[currency:([A-Za-z]{3})\]/)?.[1]?.toUpperCase(),
+      defaultCurrency: t.notes
+        ?.match(/\[currency:([A-Za-z]{3})\]/)?.[1]
+        ?.toUpperCase(),
     })),
     tagNames,
     categoryNames,
@@ -147,9 +159,19 @@ export interface ParsedInput {
   dayOffset: number;
 }
 
-const CURRENCY_ALIASES: Record<string, string> = { km: "BAM", eur: "EUR", euro: "EUR", usd: "USD", bam: "BAM", rsd: "RSD" };
+const CURRENCY_ALIASES: Record<string, string> = {
+  km: "BAM",
+  eur: "EUR",
+  euro: "EUR",
+  usd: "USD",
+  bam: "BAM",
+  rsd: "RSD",
+};
 
-export function parseAssistant(input: string, templates: PicoTemplate[]): ParsedInput | null {
+export function parseAssistant(
+  input: string,
+  templates: PicoTemplate[],
+): ParsedInput | null {
   const raw = input.trim();
   if (!raw) return null;
   const allTokens = raw.split(/\s+/);
@@ -161,7 +183,9 @@ export function parseAssistant(input: string, templates: PicoTemplate[]): Parsed
   let consumed = 0;
   for (let k = allTokens.length; k >= 1; k--) {
     const prefix = allTokens.slice(0, k).join(" ").toLowerCase();
-    const cands = templates.filter((t) => t.name.toLowerCase().startsWith(prefix));
+    const cands = templates.filter((t) =>
+      t.name.toLowerCase().startsWith(prefix),
+    );
     const exact = cands.find((t) => t.name.toLowerCase() === prefix);
     if (exact) {
       template = exact;
@@ -204,7 +228,9 @@ export function parseAssistant(input: string, templates: PicoTemplate[]): Parsed
     template,
     amount: amount ?? template.amount,
     // explicit currency beats the template's [currency:XXX] default
-    currency: currency ? (CURRENCY_ALIASES[currency] ?? currency.toUpperCase()) : template.defaultCurrency,
+    currency: currency
+      ? (CURRENCY_ALIASES[currency] ?? currency.toUpperCase())
+      : template.defaultCurrency,
     description: tokens.join(" ") || template.description,
     dayOffset,
   };
@@ -213,27 +239,52 @@ export function parseAssistant(input: string, templates: PicoTemplate[]): Parsed
 // ---------- creation ----------
 
 interface RawRate {
-  attributes: { from_currency_code: string; to_currency_code: string; rate: string };
+  attributes: {
+    from_currency_code: string;
+    to_currency_code: string;
+    rate: string;
+  };
 }
 
-export function convertAmount(amount: number, from: string, to: string, rates: Record<string, number>): number | undefined {
+export function convertAmount(
+  amount: number,
+  from: string,
+  to: string,
+  rates: Record<string, number>,
+): number | undefined {
   if (from === to) return amount;
   const r = rates[`${from}->${to}`];
   return r ? amount * r : undefined;
 }
 
-export async function createTransaction(p: ParsedInput, data: AssistantData): Promise<string> {
+export async function createTransaction(
+  p: ParsedInput,
+  data: AssistantData,
+): Promise<string> {
   const t = p.template;
-  if (p.amount === undefined) throw new Error("No amount — type one or set a default on the template");
+  if (p.amount === undefined)
+    throw new Error("No amount — type one or set a default on the template");
   const account = t.sourceId ? data.accounts[t.sourceId] : undefined;
   const accCurrency = account?.currency;
 
   let amount = p.amount;
-  let foreign: { foreign_amount: string; foreign_currency_code: string } | undefined;
+  let foreign:
+    { foreign_amount: string; foreign_currency_code: string } | undefined;
   if (p.currency && accCurrency && p.currency !== accCurrency) {
-    const converted = convertAmount(p.amount, p.currency, accCurrency, data.rates);
-    if (converted === undefined) throw new Error(`No exchange rate ${p.currency}→${accCurrency} in Firefly`);
-    foreign = { foreign_amount: p.amount.toFixed(2), foreign_currency_code: p.currency };
+    const converted = convertAmount(
+      p.amount,
+      p.currency,
+      accCurrency,
+      data.rates,
+    );
+    if (converted === undefined)
+      throw new Error(
+        `No exchange rate ${p.currency}→${accCurrency} in Firefly`,
+      );
+    foreign = {
+      foreign_amount: p.amount.toFixed(2),
+      foreign_currency_code: p.currency,
+    };
     amount = converted;
   }
 
@@ -253,7 +304,12 @@ export async function createTransaction(p: ParsedInput, data: AssistantData): Pr
   };
   await apiFetch("core", "/api/v1/transactions", {
     method: "POST",
-    body: JSON.stringify({ error_if_duplicate_hash: false, apply_rules: true, fire_webhooks: true, transactions: [tx] }),
+    body: JSON.stringify({
+      error_if_duplicate_hash: false,
+      apply_rules: true,
+      fire_webhooks: true,
+      transactions: [tx],
+    }),
   });
   return `${amount.toFixed(2)} ${accCurrency ?? ""} · ${date}`;
 }

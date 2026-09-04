@@ -1,27 +1,19 @@
-import { getPreferenceValues } from "@raycast/api";
 import { createHash, randomBytes } from "crypto";
+import { has, optionalUrl, requireUrl, setting } from "./config";
 
-interface Preferences {
-  navidromeUrl?: string;
-  navidromeUser?: string;
-  navidromePassword?: string;
-}
-
-export const NAVIDROME_URL = "https://music.bjelke.org";
+export const NAVIDROME_URL = optionalUrl("navidromeUrl");
 const TIMEOUT_MS = 10000;
 
 function prefs() {
-  const p = getPreferenceValues<Preferences>();
   return {
-    url: !p.navidromeUrl || p.navidromeUrl.includes(".ts.net") ? NAVIDROME_URL : p.navidromeUrl.replace(/\/+$/, ""),
-    user: p.navidromeUser ?? "",
-    password: p.navidromePassword ?? "",
+    url: requireUrl("navidromeUrl", "Navidrome"),
+    user: setting("navidromeUser"),
+    password: setting("navidromePassword"),
   };
 }
 
 export function hasNavidromeCreds(): boolean {
-  const { user, password } = prefs();
-  return Boolean(user && password);
+  return has("navidromeUrl", "navidromeUser", "navidromePassword");
 }
 
 // Subsonic token auth: t = md5(password + salt)
@@ -29,19 +21,36 @@ const salt = randomBytes(6).toString("hex");
 
 function authQuery(): URLSearchParams {
   const { user, password } = prefs();
-  const token = createHash("md5").update(password + salt).digest("hex");
-  return new URLSearchParams({ u: user, t: token, s: salt, v: "1.16.1", c: "raycast-homelab", f: "json" });
+  const token = createHash("md5")
+    .update(password + salt)
+    .digest("hex");
+  return new URLSearchParams({
+    u: user,
+    t: token,
+    s: salt,
+    v: "1.16.1",
+    c: "raycast-homelab",
+    f: "json",
+  });
 }
 
 interface SubsonicEnvelope<T> {
-  "subsonic-response": { status: "ok" | "failed"; error?: { message: string } } & T;
+  "subsonic-response": {
+    status: "ok" | "failed";
+    error?: { message: string };
+  } & T;
 }
 
-async function subsonic<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
+async function subsonic<T>(
+  endpoint: string,
+  params: Record<string, string> = {},
+): Promise<T> {
   const { url } = prefs();
   const qs = authQuery();
   for (const [k, v] of Object.entries(params)) qs.set(k, v);
-  const res = await fetch(`${url}/rest/${endpoint}?${qs}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const res = await fetch(`${url}/rest/${endpoint}?${qs}`, {
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`Navidrome ${endpoint} → HTTP ${res.status}`);
   const body = (await res.json()) as SubsonicEnvelope<T>;
   const r = body["subsonic-response"];
@@ -98,7 +107,8 @@ function mapAlbum(a: RawAlbum): Album {
   return { ...a };
 }
 
-export type AlbumSort = "newest" | "recent" | "frequent" | "random" | "alphabeticalByName";
+export type AlbumSort =
+  "newest" | "recent" | "frequent" | "random" | "alphabeticalByName";
 
 export const ALBUM_SORTS: { id: AlbumSort; title: string }[] = [
   { id: "newest", title: "Recently Added" },
@@ -110,29 +120,43 @@ export const ALBUM_SORTS: { id: AlbumSort; title: string }[] = [
 
 const PAGE_SIZE = 40;
 
-export async function listAlbums(sort: AlbumSort, page: number): Promise<{ albums: Album[]; hasMore: boolean }> {
-  const r = await subsonic<{ albumList2?: { album?: RawAlbum[] } }>("getAlbumList2", {
-    type: sort,
-    size: String(PAGE_SIZE),
-    offset: String(page * PAGE_SIZE),
-  });
+export async function listAlbums(
+  sort: AlbumSort,
+  page: number,
+): Promise<{ albums: Album[]; hasMore: boolean }> {
+  const r = await subsonic<{ albumList2?: { album?: RawAlbum[] } }>(
+    "getAlbumList2",
+    {
+      type: sort,
+      size: String(PAGE_SIZE),
+      offset: String(page * PAGE_SIZE),
+    },
+  );
   const albums = (r.albumList2?.album ?? []).map(mapAlbum);
   // "random" returns a fresh shuffle per call — paging it would loop forever
   return { albums, hasMore: sort !== "random" && albums.length === PAGE_SIZE };
 }
 
 export async function searchAlbums(query: string): Promise<Album[]> {
-  const r = await subsonic<{ searchResult3?: { album?: RawAlbum[] } }>("search3", {
-    query,
-    albumCount: "40",
-    songCount: "0",
-    artistCount: "0",
-  });
+  const r = await subsonic<{ searchResult3?: { album?: RawAlbum[] } }>(
+    "search3",
+    {
+      query,
+      albumCount: "40",
+      songCount: "0",
+      artistCount: "0",
+    },
+  );
   return (r.searchResult3?.album ?? []).map(mapAlbum);
 }
 
-export async function getAlbumSongs(albumId: string): Promise<{ album: Album; songs: Song[] }> {
-  const r = await subsonic<{ album?: RawAlbum & { song?: Song[] } }>("getAlbum", { id: albumId });
+export async function getAlbumSongs(
+  albumId: string,
+): Promise<{ album: Album; songs: Song[] }> {
+  const r = await subsonic<{ album?: RawAlbum & { song?: Song[] } }>(
+    "getAlbum",
+    { id: albumId },
+  );
   if (!r.album) throw new Error("Album not found");
   const { song, ...rest } = r.album;
   return { album: mapAlbum(rest), songs: song ?? [] };

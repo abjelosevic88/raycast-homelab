@@ -1,24 +1,43 @@
-import { Action, ActionPanel, Alert, Color, confirmAlert, getPreferenceValues, Icon, List, showToast, Toast, Keyboard } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Alert,
+  Color,
+  confirmAlert,
+  Icon,
+  List,
+  showToast,
+  Toast,
+  Keyboard,
+} from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { has, optionalUrl, requireUrl, setting } from "./config";
+import NotConfigured from "./not-configured";
 
-interface Preferences {
-  komodoApiKey?: string;
-  komodoApiSecret?: string;
-}
-
-const KOMODO_URL = "https://komodo.bjelke.org";
+const KOMODO_URL = optionalUrl("komodoUrl");
 const TIMEOUT_MS = 15000;
 
-function creds() {
-  const p = getPreferenceValues<Preferences>();
-  return { key: p.komodoApiKey ?? "", secret: p.komodoApiSecret ?? "" };
+export function hasKomodo(): boolean {
+  return has("komodoUrl", "komodoApiKey", "komodoApiSecret");
 }
 
-async function komodo<T>(kind: "read" | "execute", type: string, params: Record<string, unknown> = {}): Promise<T> {
+function creds() {
+  return { key: setting("komodoApiKey"), secret: setting("komodoApiSecret") };
+}
+
+async function komodo<T>(
+  kind: "read" | "execute",
+  type: string,
+  params: Record<string, unknown> = {},
+): Promise<T> {
   const { key, secret } = creds();
-  const res = await fetch(`${KOMODO_URL}/${kind}`, {
+  const res = await fetch(`${requireUrl("komodoUrl", "Komodo")}/${kind}`, {
     method: "POST",
-    headers: { "X-Api-Key": key, "X-Api-Secret": secret, "Content-Type": "application/json" },
+    headers: {
+      "X-Api-Key": key,
+      "X-Api-Secret": secret,
+      "Content-Type": "application/json",
+    },
     signal: AbortSignal.timeout(TIMEOUT_MS),
     body: JSON.stringify({ type, params }),
   });
@@ -54,24 +73,36 @@ const STATE_COLOR: Record<string, Color> = {
 };
 
 export default function Containers() {
-  const { key, secret } = creds();
-  const hasCreds = Boolean(key && secret);
+  const hasCreds = hasKomodo();
   const { data, isLoading, revalidate } = useCachedPromise(
-    async (ok: boolean) => (ok ? await komodo<StackListItem[]>("read", "ListStacks") : []),
+    async (ok: boolean) =>
+      ok ? await komodo<StackListItem[]>("read", "ListStacks") : [],
     [hasCreds],
     { keepPreviousData: true },
   );
 
-  async function act(stack: StackListItem, action: "RestartStack" | "StartStack" | "StopStack") {
+  async function act(
+    stack: StackListItem,
+    action: "RestartStack" | "StartStack" | "StopStack",
+  ) {
     const verb = action.replace("Stack", "").toLowerCase();
     if (
       !(await confirmAlert({
         title: `${verb} stack "${stack.name}"?`,
-        primaryAction: { title: verb, style: action === "StopStack" ? Alert.ActionStyle.Destructive : Alert.ActionStyle.Default },
+        primaryAction: {
+          title: verb,
+          style:
+            action === "StopStack"
+              ? Alert.ActionStyle.Destructive
+              : Alert.ActionStyle.Default,
+        },
       }))
     )
       return;
-    const toast = await showToast({ style: Toast.Style.Animated, title: `${verb}ing ${stack.name}…` });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: `${verb}ing ${stack.name}…`,
+    });
     try {
       await komodo("execute", action, { stack: stack.name });
       toast.style = Toast.Style.Success;
@@ -86,7 +117,9 @@ export default function Containers() {
   }
 
   const stacks = [...(data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
-  const running = stacks.filter((s) => (s.info?.state ?? "unknown") === "running");
+  const running = stacks.filter(
+    (s) => (s.info?.state ?? "unknown") === "running",
+  );
   const rest = stacks.filter((s) => (s.info?.state ?? "unknown") !== "running");
 
   function stackItem(s: StackListItem) {
@@ -100,9 +133,23 @@ export default function Containers() {
         accessories={[{ tag: { value: state, color } }]}
         actions={
           <ActionPanel>
-            <Action title="Restart Stack" icon={Icon.ArrowClockwise} onAction={() => act(s, "RestartStack")} />
-            {state !== "running" && <Action title="Start Stack" icon={Icon.Play} onAction={() => act(s, "StartStack")} />}
-            <Action.OpenInBrowser title="Open Komodo" url={KOMODO_URL} shortcut={Keyboard.Shortcut.Common.Open} />
+            <Action
+              title="Restart Stack"
+              icon={Icon.ArrowClockwise}
+              onAction={() => act(s, "RestartStack")}
+            />
+            {state !== "running" && (
+              <Action
+                title="Start Stack"
+                icon={Icon.Play}
+                onAction={() => act(s, "StartStack")}
+              />
+            )}
+            <Action.OpenInBrowser
+              title="Open Komodo"
+              url={KOMODO_URL}
+              shortcut={Keyboard.Shortcut.Common.Open}
+            />
             <Action
               title="Refresh"
               icon={Icon.ArrowClockwise}
@@ -123,16 +170,24 @@ export default function Containers() {
   }
 
   return (
-    <List isLoading={isLoading} searchBarPlaceholder={`Filter ${stacks.length} stacks…`}>
+    <List
+      isLoading={isLoading}
+      searchBarPlaceholder={`Filter ${stacks.length} stacks…`}
+    >
       {!hasCreds && (
-        <List.EmptyView
-          icon={{ source: Icon.Key, tintColor: Color.Orange }}
-          title="Komodo API key not set"
-          description="Komodo → Settings → Api Keys → create one, then ⌘K → Configure Extension (key + secret)"
+        <NotConfigured
+          service="Komodo"
+          needs="URL, API key and secret (Komodo → Settings → Api Keys)"
         />
       )}
-      {rest.length > 0 && <List.Section title={`Not Running (${rest.length})`}>{rest.map(stackItem)}</List.Section>}
-      <List.Section title={`Running (${running.length})`}>{running.map(stackItem)}</List.Section>
+      {rest.length > 0 && (
+        <List.Section title={`Not Running (${rest.length})`}>
+          {rest.map(stackItem)}
+        </List.Section>
+      )}
+      <List.Section title={`Running (${running.length})`}>
+        {running.map(stackItem)}
+      </List.Section>
     </List>
   );
 }

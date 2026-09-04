@@ -1,6 +1,8 @@
 import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { HEALTH_URLS } from "./health-api";
+import { has, requireUrl } from "./config";
+import NotConfigured from "./not-configured";
 
 interface Disk {
   wwn: string;
@@ -16,7 +18,10 @@ interface Disk {
 }
 
 async function loadDisks(): Promise<Disk[]> {
-  const res = await fetch(`${HEALTH_URLS.scrutiny}/api/summary`, { signal: AbortSignal.timeout(10000) });
+  const res = await fetch(
+    `${requireUrl("scrutinyUrl", "Scrutiny")}/api/summary`,
+    { signal: AbortSignal.timeout(10000) },
+  );
   if (!res.ok) throw new Error(`Scrutiny → HTTP ${res.status}`);
   const body = (await res.json()) as {
     data: {
@@ -32,7 +37,11 @@ async function loadDisks(): Promise<Disk[]> {
             serial_number?: string;
             capacity?: number;
           };
-          smart?: { temp?: number; power_on_hours?: number; collector_date?: string };
+          smart?: {
+            temp?: number;
+            power_on_hours?: number;
+            collector_date?: string;
+          };
         }
       >;
     };
@@ -60,24 +69,40 @@ function statusMeta(status: number): { label: string; color: Color } {
 }
 
 function fmtCap(bytes: number): string {
-  return bytes >= 1e12 ? `${(bytes / 1e12).toFixed(0)} TB` : `${Math.round(bytes / 1e9)} GB`;
+  return bytes >= 1e12
+    ? `${(bytes / 1e12).toFixed(0)} TB`
+    : `${Math.round(bytes / 1e9)} GB`;
 }
 
 function fmtAge(hours?: number): string | undefined {
   if (!hours) return undefined;
   const years = hours / 8760;
-  return years >= 1 ? `${years.toFixed(1)}y on` : `${Math.round(hours / 24)}d on`;
+  return years >= 1
+    ? `${years.toFixed(1)}y on`
+    : `${Math.round(hours / 24)}d on`;
 }
 
 export default function Disks() {
-  const { data, isLoading, revalidate } = useCachedPromise(loadDisks, [], { keepPreviousData: true });
+  const configured = has("scrutinyUrl");
+  const { data, isLoading, revalidate } = useCachedPromise(
+    async (ok: boolean) => (ok ? await loadDisks() : []),
+    [configured],
+    {
+      keepPreviousData: true,
+    },
+  );
 
   const hosts = [...new Set((data ?? []).map((d) => d.host))].sort();
 
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Filter disks…">
+      {!configured && <NotConfigured service="Scrutiny" needs="URL" />}
       {hosts.map((host) => (
-        <List.Section key={host} title={host} subtitle={`${data?.filter((d) => d.host === host).length} disks`}>
+        <List.Section
+          key={host}
+          title={host}
+          subtitle={`${data?.filter((d) => d.host === host).length} disks`}
+        >
           {data
             ?.filter((d) => d.host === host)
             .sort((a, b) => a.name.localeCompare(b.name))
@@ -94,9 +119,21 @@ export default function Disks() {
                   subtitle={`${d.model} · ${fmtCap(d.capacity)}`}
                   accessories={[
                     ...(d.temp !== undefined
-                      ? [{ tag: { value: `${d.temp}°`, color: d.temp >= 50 ? Color.Orange : Color.SecondaryText } }]
+                      ? [
+                          {
+                            tag: {
+                              value: `${d.temp}°`,
+                              color:
+                                d.temp >= 50
+                                  ? Color.Orange
+                                  : Color.SecondaryText,
+                            },
+                          },
+                        ]
                       : []),
-                    ...(fmtAge(d.powerOnHours) ? [{ text: fmtAge(d.powerOnHours) }] : []),
+                    ...(fmtAge(d.powerOnHours)
+                      ? [{ text: fmtAge(d.powerOnHours) }]
+                      : []),
                     { tag: { value: meta.label, color: meta.color } },
                   ]}
                   actions={

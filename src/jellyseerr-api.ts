@@ -1,22 +1,29 @@
-import { getPreferenceValues } from "@raycast/api";
+import { has, optionalUrl, requireUrl, setting } from "./config";
 
-interface Preferences {
-  jellyseerrUrl?: string;
-  jellyseerrApiKey?: string;
-}
-
-export const JELLYSEERR_URL = "https://requests.bjelke.org";
+export const JELLYSEERR_URL = optionalUrl("jellyseerrUrl");
 const TIMEOUT_MS = 10000;
 
+export function hasJellyseerr(): boolean {
+  return has("jellyseerrUrl", "jellyseerrApiKey");
+}
+
+/** Render-safe: url is "" when unset. Views gate on `key && url`. */
 export function jellyseerrPrefs() {
-  const p = getPreferenceValues<Preferences>();
-  const url =
-    !p.jellyseerrUrl || p.jellyseerrUrl.includes(".ts.net") ? JELLYSEERR_URL : p.jellyseerrUrl.replace(/\/+$/, "");
-  return { url, key: p.jellyseerrApiKey ?? "" };
+  return {
+    url: optionalUrl("jellyseerrUrl"),
+    key: setting("jellyseerrApiKey"),
+  };
+}
+
+function jellyseerrBase(): string {
+  return requireUrl("jellyseerrUrl", "Jellyseerr");
 }
 
 // Jellyseerr media status codes
-export const STATUS: Record<number, { label: string; color: "green" | "orange" | "blue" | "yellow" }> = {
+export const STATUS: Record<
+  number,
+  { label: string; color: "green" | "orange" | "blue" | "yellow" }
+> = {
   2: { label: "requested", color: "orange" },
   3: { label: "processing", color: "blue" },
   4: { label: "partially available", color: "yellow" },
@@ -36,10 +43,15 @@ export interface SearchResult {
 }
 
 async function jsFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const { url, key } = jellyseerrPrefs();
+  const url = jellyseerrBase();
+  const { key } = jellyseerrPrefs();
   const res = await fetch(`${url}${path}`, {
     ...init,
-    headers: { "X-Api-Key": key, "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      "X-Api-Key": key,
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) {
@@ -60,14 +72,27 @@ export interface Page<T> {
   hasMore: boolean;
 }
 
-export async function searchMedia(query: string, page = 1): Promise<Page<SearchResult>> {
-  const data = await jsFetch<{ results: SearchResult[]; totalPages: number; page: number }>(
-    `/api/v1/search?query=${encodeURIComponent(query)}&page=${page}`,
-  );
-  return { results: data.results.filter((r) => r.mediaType !== "person"), hasMore: data.page < data.totalPages };
+export async function searchMedia(
+  query: string,
+  page = 1,
+): Promise<Page<SearchResult>> {
+  const data = await jsFetch<{
+    results: SearchResult[];
+    totalPages: number;
+    page: number;
+  }>(`/api/v1/search?query=${encodeURIComponent(query)}&page=${page}`);
+  return {
+    results: data.results.filter((r) => r.mediaType !== "person"),
+    hasMore: data.page < data.totalPages,
+  };
 }
 
-export type DiscoverCategory = "trending" | "popular-movies" | "popular-tv" | "upcoming-movies" | "upcoming-tv";
+export type DiscoverCategory =
+  | "trending"
+  | "popular-movies"
+  | "popular-tv"
+  | "upcoming-movies"
+  | "upcoming-tv";
 
 export const DISCOVER_CATEGORIES: { id: DiscoverCategory; title: string }[] = [
   { id: "trending", title: "Trending" },
@@ -77,17 +102,30 @@ export const DISCOVER_CATEGORIES: { id: DiscoverCategory; title: string }[] = [
   { id: "upcoming-tv", title: "Upcoming Series" },
 ];
 
-const DISCOVER_PATHS: Record<DiscoverCategory, { path: string; type?: "movie" | "tv" }> = {
+const DISCOVER_PATHS: Record<
+  DiscoverCategory,
+  { path: string; type?: "movie" | "tv" }
+> = {
   trending: { path: "/api/v1/discover/trending" },
   "popular-movies": { path: "/api/v1/discover/movies", type: "movie" },
   "popular-tv": { path: "/api/v1/discover/tv", type: "tv" },
-  "upcoming-movies": { path: "/api/v1/discover/movies/upcoming", type: "movie" },
+  "upcoming-movies": {
+    path: "/api/v1/discover/movies/upcoming",
+    type: "movie",
+  },
   "upcoming-tv": { path: "/api/v1/discover/tv/upcoming", type: "tv" },
 };
 
-export async function discoverMedia(category: DiscoverCategory, page = 1): Promise<Page<SearchResult>> {
+export async function discoverMedia(
+  category: DiscoverCategory,
+  page = 1,
+): Promise<Page<SearchResult>> {
   const { path, type } = DISCOVER_PATHS[category];
-  const data = await jsFetch<{ results: SearchResult[]; totalPages: number; page: number }>(`${path}?page=${page}`);
+  const data = await jsFetch<{
+    results: SearchResult[];
+    totalPages: number;
+    page: number;
+  }>(`${path}?page=${page}`);
   return {
     results: data.results
       .filter((r) => r.mediaType !== "person")
@@ -138,7 +176,10 @@ interface RawDetails {
 
 const detailsCache = new Map<string, Promise<MediaDetails>>();
 
-export function getDetailsCached(mediaType: "movie" | "tv", id: number): Promise<MediaDetails> {
+export function getDetailsCached(
+  mediaType: "movie" | "tv",
+  id: number,
+): Promise<MediaDetails> {
   const k = `${mediaType}:${id}`;
   let p = detailsCache.get(k);
   if (!p) {
@@ -149,7 +190,10 @@ export function getDetailsCached(mediaType: "movie" | "tv", id: number): Promise
   return p;
 }
 
-export async function getDetails(mediaType: "movie" | "tv", id: number): Promise<MediaDetails> {
+export async function getDetails(
+  mediaType: "movie" | "tv",
+  id: number,
+): Promise<MediaDetails> {
   const d = await jsFetch<RawDetails>(`/api/v1/${mediaType}/${id}`);
   return {
     id: d.id,
@@ -174,19 +218,29 @@ export interface ServiceProfiles {
   profiles: { id: number; name: string }[];
 }
 
-const profileCache: Partial<Record<"movie" | "tv", { data: ServiceProfiles; at: number }>> = {};
+const profileCache: Partial<
+  Record<"movie" | "tv", { data: ServiceProfiles; at: number }>
+> = {};
 
-export async function getProfiles(mediaType: "movie" | "tv"): Promise<ServiceProfiles> {
+export async function getProfiles(
+  mediaType: "movie" | "tv",
+): Promise<ServiceProfiles> {
   const cached = profileCache[mediaType];
   if (cached && Date.now() - cached.at < 5 * 60 * 1000) return cached.data;
   const svc = mediaType === "movie" ? "radarr" : "sonarr";
-  const servers = await jsFetch<{ id: number; isDefault: boolean; activeProfileId: number }[]>(
-    `/api/v1/service/${svc}`,
-  );
+  const servers = await jsFetch<
+    { id: number; isDefault: boolean; activeProfileId: number }[]
+  >(`/api/v1/service/${svc}`);
   const server = servers.find((s) => s.isDefault) ?? servers[0];
   if (!server) throw new Error(`No ${svc} server configured in Jellyseerr`);
-  const detail = await jsFetch<{ profiles: { id: number; name: string }[] }>(`/api/v1/service/${svc}/${server.id}`);
-  const data = { serverId: server.id, activeProfileId: server.activeProfileId, profiles: detail.profiles };
+  const detail = await jsFetch<{ profiles: { id: number; name: string }[] }>(
+    `/api/v1/service/${svc}/${server.id}`,
+  );
+  const data = {
+    serverId: server.id,
+    activeProfileId: server.activeProfileId,
+    profiles: detail.profiles,
+  };
   profileCache[mediaType] = { data, at: Date.now() };
   return data;
 }
@@ -196,29 +250,45 @@ export async function requestMedia(
   profileId?: number,
   seasons?: number[],
 ): Promise<void> {
-  const body: { mediaType: string; mediaId: number; seasons?: number[]; profileId?: number; serverId?: number } = {
+  const body: {
+    mediaType: string;
+    mediaId: number;
+    seasons?: number[];
+    profileId?: number;
+    serverId?: number;
+  } = {
     mediaType: result.mediaType,
     mediaId: result.id,
   };
   if (profileId !== undefined) {
     body.profileId = profileId;
-    body.serverId = (await getProfiles(result.mediaType as "movie" | "tv")).serverId;
+    body.serverId = (
+      await getProfiles(result.mediaType as "movie" | "tv")
+    ).serverId;
   }
   if (result.mediaType === "tv") {
     if (seasons) {
       body.seasons = seasons;
     } else {
       // request every real season; Jellyseerr wants explicit season numbers
-      const tv = await jsFetch<{ seasons: { seasonNumber: number }[] }>(`/api/v1/tv/${result.id}`);
+      const tv = await jsFetch<{ seasons: { seasonNumber: number }[] }>(
+        `/api/v1/tv/${result.id}`,
+      );
       body.seasons = tv.seasons.map((s) => s.seasonNumber).filter((n) => n > 0);
     }
   }
-  await jsFetch("/api/v1/request", { method: "POST", body: JSON.stringify(body) });
+  await jsFetch("/api/v1/request", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 // ---------- request management ----------
 
-export const REQUEST_STATUS: Record<number, { label: string; color: "green" | "orange" | "blue" | "red" }> = {
+export const REQUEST_STATUS: Record<
+  number,
+  { label: string; color: "green" | "orange" | "blue" | "red" }
+> = {
   1: { label: "pending", color: "orange" },
   2: { label: "approved", color: "blue" },
   3: { label: "declined", color: "red" },
@@ -226,7 +296,8 @@ export const REQUEST_STATUS: Record<number, { label: string; color: "green" | "o
   5: { label: "completed", color: "green" },
 };
 
-export type RequestFilter = "all" | "pending" | "approved" | "processing" | "available" | "failed";
+export type RequestFilter =
+  "all" | "pending" | "approved" | "processing" | "available" | "failed";
 
 export interface MediaRequestItem {
   id: number;
@@ -253,8 +324,14 @@ interface RawRequest {
 
 const REQUEST_PAGE_SIZE = 40;
 
-export async function listRequests(filter: RequestFilter, page = 0): Promise<Page<MediaRequestItem>> {
-  const data = await jsFetch<{ results: RawRequest[]; pageInfo: { pages: number; page: number } }>(
+export async function listRequests(
+  filter: RequestFilter,
+  page = 0,
+): Promise<Page<MediaRequestItem>> {
+  const data = await jsFetch<{
+    results: RawRequest[];
+    pageInfo: { pages: number; page: number };
+  }>(
     `/api/v1/request?take=${REQUEST_PAGE_SIZE}&skip=${page * REQUEST_PAGE_SIZE}&sort=added&filter=${filter}`,
   );
   const results = await Promise.all(
@@ -288,12 +365,16 @@ export async function listRequests(filter: RequestFilter, page = 0): Promise<Pag
   return { results, hasMore: data.pageInfo.page < data.pageInfo.pages };
 }
 
-export async function actOnRequest(requestId: number, action: "approve" | "decline" | "retry"): Promise<void> {
+export async function actOnRequest(
+  requestId: number,
+  action: "approve" | "decline" | "retry",
+): Promise<void> {
   await jsFetch(`/api/v1/request/${requestId}/${action}`, { method: "POST" });
 }
 
 export async function deleteRequest(requestId: number): Promise<void> {
-  const { url, key } = jellyseerrPrefs();
+  const url = jellyseerrBase();
+  const { key } = jellyseerrPrefs();
   const res = await fetch(`${url}/api/v1/request/${requestId}`, {
     method: "DELETE",
     headers: { "X-Api-Key": key },

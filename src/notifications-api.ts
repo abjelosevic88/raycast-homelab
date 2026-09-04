@@ -1,18 +1,16 @@
-import { getPreferenceValues } from "@raycast/api";
+import { has, optionalUrl, requireUrl, setting } from "./config";
 
-interface Preferences {
-  ntfyUrl?: string;
-  ntfyTopics?: string;
-}
-
-export const NTFY_URL = "https://ntfy.bjelke.org";
+export const NTFY_URL = optionalUrl("ntfyUrl");
 const TIMEOUT_MS = 10000;
 
+export function hasNtfy(): boolean {
+  return has("ntfyUrl", "ntfyTopics");
+}
+
 export function ntfyPrefs() {
-  const p = getPreferenceValues<Preferences>();
   return {
-    url: !p.ntfyUrl || p.ntfyUrl.includes(".ts.net") ? NTFY_URL : p.ntfyUrl.replace(/\/+$/, ""),
-    topics: (p.ntfyTopics || "alerts,downloads")
+    url: requireUrl("ntfyUrl", "ntfy"),
+    topics: setting("ntfyTopics")
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean),
@@ -42,16 +40,27 @@ interface RawNtfyMessage {
 
 function classify(m: RawNtfyMessage): Notification["kind"] {
   const hay = `${m.icon ?? ""} ${m.title ?? ""}`;
-  if (hay.includes("failure") || hay.includes("⚠️") || hay.includes("❌") || (m.priority ?? 3) >= 4) return "failure";
+  if (
+    hay.includes("failure") ||
+    hay.includes("⚠️") ||
+    hay.includes("❌") ||
+    (m.priority ?? 3) >= 4
+  )
+    return "failure";
   if (hay.includes("success") || hay.includes("✅")) return "success";
   return "info";
 }
 
-export async function loadNotifications(since = "168h"): Promise<Notification[]> {
+export async function loadNotifications(
+  since = "168h",
+): Promise<Notification[]> {
   const { url, topics } = ntfyPrefs();
-  const res = await fetch(`${url}/${topics.join(",")}/json?poll=1&since=${since}`, {
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  const res = await fetch(
+    `${url}/${topics.join(",")}/json?poll=1&since=${since}`,
+    {
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    },
+  );
   if (!res.ok) throw new Error(`ntfy → HTTP ${res.status}`);
   // ntfy streams line-delimited JSON, one message object per line
   const text = await res.text();

@@ -1,24 +1,28 @@
-import { getPreferenceValues } from "@raycast/api";
+import { has, optionalUrl, requireUrl, setting } from "./config";
 
-interface Preferences {
-  prowlarrApiKey?: string;
-}
-
-export const PROWLARR_URL = "https://prowlarr.bjelke.org";
+export const PROWLARR_URL = optionalUrl("prowlarrUrl");
 const TIMEOUT_MS = 40000; // indexer fan-out can be slow
 
 export function hasProwlarrKey(): boolean {
-  return Boolean(getPreferenceValues<Preferences>().prowlarrApiKey);
+  return has("prowlarrUrl", "prowlarrApiKey");
 }
 
 async function prowlarr<T>(path: string, init?: RequestInit): Promise<T> {
-  const key = getPreferenceValues<Preferences>().prowlarrApiKey ?? "";
-  const res = await fetch(`${PROWLARR_URL}/api/v1${path}`, {
-    ...init,
-    headers: { "X-Api-Key": key, "Content-Type": "application/json", ...(init?.headers ?? {}) },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`Prowlarr ${path.split("?")[0]} → HTTP ${res.status}`);
+  const key = setting("prowlarrApiKey");
+  const res = await fetch(
+    `${requireUrl("prowlarrUrl", "Prowlarr")}/api/v1${path}`,
+    {
+      ...init,
+      headers: {
+        "X-Api-Key": key,
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    },
+  );
+  if (!res.ok)
+    throw new Error(`Prowlarr ${path.split("?")[0]} → HTTP ${res.status}`);
   return (await res.json()) as T;
 }
 
@@ -45,7 +49,10 @@ export interface Release {
   categories: string[];
 }
 
-export async function searchReleases(query: string, categoryId: string): Promise<Release[]> {
+export async function searchReleases(
+  query: string,
+  categoryId: string,
+): Promise<Release[]> {
   const cat = CATEGORIES.find((c) => c.id === categoryId);
   const qs = new URLSearchParams({ query, type: "search", limit: "100" });
   for (const c of cat?.ids ?? []) qs.append("categories", String(c));
@@ -85,7 +92,10 @@ export async function searchReleases(query: string, categoryId: string): Promise
 
 // Prowlarr sends the release to the download client configured for that indexer/category
 export async function grabRelease(r: Release): Promise<void> {
-  await prowlarr("/search", { method: "POST", body: JSON.stringify({ guid: r.guid, indexerId: r.indexerId }) });
+  await prowlarr("/search", {
+    method: "POST",
+    body: JSON.stringify({ guid: r.guid, indexerId: r.indexerId }),
+  });
 }
 
 export function fmtBytes(b: number): string {

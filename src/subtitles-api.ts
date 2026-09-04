@@ -1,17 +1,15 @@
-import { getPreferenceValues } from "@raycast/api";
+import { has, optionalUrl, requireUrl, setting } from "./config";
 
-interface Preferences {
-  bazarrApiKey?: string;
-  subsyncUrl?: string;
-}
-
-export const BAZARR_URL = "https://bazarr.bjelke.org";
-export const SUBSYNC_URL = "https://subtitles.bjelke.org";
+export const BAZARR_URL = optionalUrl("bazarrUrl");
+export const SUBSYNC_URL = optionalUrl("subsyncUrl");
 const TIMEOUT_MS = 10000;
 
 function subsyncBase(): string {
-  const p = getPreferenceValues<Preferences>();
-  return (p.subsyncUrl || SUBSYNC_URL).replace(/\/+$/, "");
+  return requireUrl("subsyncUrl", "Subtitle Sync Server");
+}
+
+export function hasSubsync(): boolean {
+  return has("subsyncUrl");
 }
 
 // ---------- manual ±ms nudges (the /nudge page of sync-status-server) ----------
@@ -25,18 +23,40 @@ export interface SubtitleFile {
   nudgedMs: number;
 }
 
-export async function listSubtitleFiles(opts: { q?: string; pinned?: boolean; limit?: number } = {}): Promise<SubtitleFile[]> {
+export async function listSubtitleFiles(
+  opts: { q?: string; pinned?: boolean; limit?: number } = {},
+): Promise<SubtitleFile[]> {
   const qs = new URLSearchParams();
   if (opts.q) qs.set("q", opts.q);
   if (opts.pinned) qs.set("pinned", "1");
   if (opts.limit) qs.set("limit", String(opts.limit));
-  const res = await fetch(`${subsyncBase()}/nudge/files${qs.size ? `?${qs}` : ""}`, { signal: AbortSignal.timeout(20000) });
+  const res = await fetch(
+    `${subsyncBase()}/nudge/files${qs.size ? `?${qs}` : ""}`,
+    { signal: AbortSignal.timeout(20000) },
+  );
   if (!res.ok) throw new Error(`nudge/files → HTTP ${res.status}`);
-  const raw = (await res.json()) as { path: string; name: string; rel: string; lang: string; pinned: boolean; nudged_ms: number }[];
-  return raw.map((f) => ({ path: f.path, name: f.name, rel: f.rel, lang: f.lang, pinned: f.pinned, nudgedMs: f.nudged_ms }));
+  const raw = (await res.json()) as {
+    path: string;
+    name: string;
+    rel: string;
+    lang: string;
+    pinned: boolean;
+    nudged_ms: number;
+  }[];
+  return raw.map((f) => ({
+    path: f.path,
+    name: f.name,
+    rel: f.rel,
+    lang: f.lang,
+    pinned: f.pinned,
+    nudgedMs: f.nudged_ms,
+  }));
 }
 
-async function nudgePost<T>(route: "apply" | "undo" | "unpin", body: Record<string, unknown>): Promise<T> {
+async function nudgePost<T>(
+  route: "apply" | "undo" | "unpin",
+  body: Record<string, unknown>,
+): Promise<T> {
   const res = await fetch(`${subsyncBase()}/nudge/${route}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,12 +64,16 @@ async function nudgePost<T>(route: "apply" | "undo" | "unpin", body: Record<stri
     signal: AbortSignal.timeout(30000),
   });
   const data = (await res.json()) as T & { ok?: boolean; error?: string };
-  if (!res.ok || data.ok === false) throw new Error(data.error ?? `nudge/${route} → HTTP ${res.status}`);
+  if (!res.ok || data.ok === false)
+    throw new Error(data.error ?? `nudge/${route} → HTTP ${res.status}`);
   return data;
 }
 
 export function nudgeApply(path: string, ms: number) {
-  return nudgePost<{ cues: number; ms: number; pinned: boolean }>("apply", { path, ms });
+  return nudgePost<{ cues: number; ms: number; pinned: boolean }>("apply", {
+    path,
+    ms,
+  });
 }
 export function nudgeUndo(path: string) {
   return nudgePost<{ restored_ms: number }>("undo", { path });
@@ -67,22 +91,24 @@ export interface SubsyncStatus {
 }
 
 export async function loadSubsyncStatus(): Promise<SubsyncStatus> {
-  const res = await fetch(`${subsyncBase()}/`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const res = await fetch(`${subsyncBase()}/`, {
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`subsync status → HTTP ${res.status}`);
   return (await res.json()) as SubsyncStatus;
 }
 
 export function hasBazarrKey(): boolean {
-  return Boolean(getPreferenceValues<Preferences>().bazarrApiKey);
+  return has("bazarrUrl", "bazarrApiKey");
 }
 
 async function bazarr<T>(path: string): Promise<T> {
-  const p = getPreferenceValues<Preferences>();
-  const res = await fetch(`${BAZARR_URL}${path}`, {
-    headers: { "X-API-KEY": p.bazarrApiKey ?? "" },
+  const res = await fetch(`${requireUrl("bazarrUrl", "Bazarr")}${path}`, {
+    headers: { "X-API-KEY": setting("bazarrApiKey") },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`Bazarr ${path.split("?")[0]} → HTTP ${res.status}`);
+  if (!res.ok)
+    throw new Error(`Bazarr ${path.split("?")[0]} → HTTP ${res.status}`);
   return (await res.json()) as T;
 }
 
@@ -94,15 +120,29 @@ export interface WantedItem {
   languages: string[];
 }
 
-export async function loadWanted(): Promise<{ episodes: WantedItem[]; movies: WantedItem[]; totals: { episodes: number; movies: number } }> {
+export async function loadWanted(): Promise<{
+  episodes: WantedItem[];
+  movies: WantedItem[];
+  totals: { episodes: number; movies: number };
+}> {
   const [eps, movs] = await Promise.all([
     bazarr<{
       total: number;
-      data: { sonarrEpisodeId: number; seriesTitle: string; episode_number: string; episodeTitle?: string; missing_subtitles?: { code2: string }[] }[];
+      data: {
+        sonarrEpisodeId: number;
+        seriesTitle: string;
+        episode_number: string;
+        episodeTitle?: string;
+        missing_subtitles?: { code2: string }[];
+      }[];
     }>("/api/episodes/wanted?length=100"),
     bazarr<{
       total: number;
-      data: { radarrId: number; title: string; missing_subtitles?: { code2: string }[] }[];
+      data: {
+        radarrId: number;
+        title: string;
+        missing_subtitles?: { code2: string }[];
+      }[];
     }>("/api/movies/wanted?length=100"),
   ]);
   return {

@@ -1,30 +1,28 @@
-import { getPreferenceValues } from "@raycast/api";
+import { has, optionalUrl, requireUrl, setting } from "./config";
 
-interface Preferences {
-  jellyfinApiKey?: string;
-  jellyfinUserId?: string;
-}
-
-export const JELLYFIN_URL = "https://jellyfin.bjelke.org";
+export const JELLYFIN_URL = optionalUrl("jellyfinUrl");
 const TIMEOUT_MS = 10000;
 
 function prefs() {
-  const p = getPreferenceValues<Preferences>();
-  return { key: p.jellyfinApiKey ?? "", userId: p.jellyfinUserId ?? "" };
+  return { key: setting("jellyfinApiKey"), userId: setting("jellyfinUserId") };
 }
 
 export function hasJellyfinKey(): boolean {
-  return Boolean(prefs().key);
+  return has("jellyfinUrl", "jellyfinApiKey");
 }
 
 async function jf<T>(path: string, init?: RequestInit): Promise<T> {
   const { key } = prefs();
-  const res = await fetch(`${JELLYFIN_URL}${path}`, {
+  const res = await fetch(`${requireUrl("jellyfinUrl", "Jellyfin")}${path}`, {
     ...init,
-    headers: { Authorization: `MediaBrowser Token=${key}`, ...(init?.headers ?? {}) },
+    headers: {
+      Authorization: `MediaBrowser Token=${key}`,
+      ...(init?.headers ?? {}),
+    },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`Jellyfin ${path.split("?")[0]} → HTTP ${res.status}`);
+  if (!res.ok)
+    throw new Error(`Jellyfin ${path.split("?")[0]} → HTTP ${res.status}`);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
@@ -36,7 +34,10 @@ async function userId(): Promise<string> {
   const { userId: configured } = prefs();
   if (configured) return configured;
   if (cachedUserId) return cachedUserId;
-  const users = await jf<{ Id: string; Policy?: { IsAdministrator?: boolean } }[]>("/Users");
+  const users =
+    await jf<{ Id: string; Policy?: { IsAdministrator?: boolean } }[]>(
+      "/Users",
+    );
   const admin = users.find((u) => u.Policy?.IsAdministrator) ?? users[0];
   if (!admin) throw new Error("Jellyfin: no users found");
   cachedUserId = admin.Id;
@@ -80,7 +81,9 @@ function mapItem(i: RawItem): JfItem {
     episode: i.IndexNumber,
     year: i.ProductionYear,
     progress: (i.UserData?.PlayedPercentage ?? 0) / 100,
-    runtimeMin: i.RunTimeTicks ? Math.round(i.RunTimeTicks / 600000000) : undefined,
+    runtimeMin: i.RunTimeTicks
+      ? Math.round(i.RunTimeTicks / 600000000)
+      : undefined,
   };
 }
 
@@ -111,7 +114,9 @@ export async function loadSessions(): Promise<JfSession[]> {
       client: s.Client ?? "",
       item: s.NowPlayingItem ? mapItem(s.NowPlayingItem) : undefined,
       paused: Boolean(s.PlayState?.IsPaused),
-      positionMin: s.PlayState?.PositionTicks ? Math.round(s.PlayState.PositionTicks / 600000000) : undefined,
+      positionMin: s.PlayState?.PositionTicks
+        ? Math.round(s.PlayState.PositionTicks / 600000000)
+        : undefined,
     }));
 }
 
@@ -125,7 +130,9 @@ export async function loadResume(limit = 24): Promise<JfItem[]> {
 
 export async function loadNextUp(limit = 24): Promise<JfItem[]> {
   const uid = await userId();
-  const r = await jf<{ Items: RawItem[] }>(`/Shows/NextUp?userId=${uid}&limit=${limit}&fields=ProductionYear`);
+  const r = await jf<{ Items: RawItem[] }>(
+    `/Shows/NextUp?userId=${uid}&limit=${limit}&fields=ProductionYear`,
+  );
   return r.Items.map(mapItem);
 }
 
@@ -147,7 +154,10 @@ export function itemWebUrl(itemId: string): string {
 
 export function itemLabel(i: JfItem): string {
   if (i.type === "Episode" && i.seriesName) {
-    const se = i.season !== undefined && i.episode !== undefined ? ` S${String(i.season).padStart(2, "0")}E${String(i.episode).padStart(2, "0")}` : "";
+    const se =
+      i.season !== undefined && i.episode !== undefined
+        ? ` S${String(i.season).padStart(2, "0")}E${String(i.episode).padStart(2, "0")}`
+        : "";
     return `${i.seriesName}${se}`;
   }
   return `${i.name}${i.year ? ` (${i.year})` : ""}`;
