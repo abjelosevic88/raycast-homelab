@@ -1,4 +1,10 @@
-import { has, optionalUrl, requireUrl, setting } from "./config";
+import {
+  describeSetting,
+  has,
+  optionalUrl,
+  requireUrl,
+  setting,
+} from "./config";
 
 export const KUMA_URL = optionalUrl("kumaUrl");
 const TIMEOUT_MS = 8000;
@@ -41,7 +47,12 @@ async function loadFromMetrics(
     },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`Kuma /metrics → HTTP ${res.status}`);
+  if (!res.ok) {
+    let msg = `Kuma /metrics → HTTP ${res.status}`;
+    if (res.status === 401)
+      msg += ` — ${describeSetting("kumaApiKey")}; a valid key is 44 chars and starts with "uk<id>_"`;
+    throw new Error(msg);
+  }
   const text = await res.text();
   const byName = new Map<string, MonitorStatus>();
   for (const line of text.split("\n")) {
