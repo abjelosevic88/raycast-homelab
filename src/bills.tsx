@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { has } from "./config";
 import { FIREFLY_URLS } from "./firefly-api";
 import {
   loadBills,
@@ -154,9 +155,14 @@ export function BillsList() {
 }
 
 export default function Bills() {
-  const subs = useCachedPromise(loadSubscriptions, [], {
-    keepPreviousData: true,
-  });
+  // the subscriptions summary is optional (companion script); skip when its URL is unset
+  const subs = useCachedPromise(
+    async (ok: boolean) => (ok ? await loadSubscriptions() : undefined),
+    [has("subscriptionsUrl")],
+    {
+      keepPreviousData: true,
+    },
+  );
   const spend = useCachedPromise(loadMonthSpend, [], {
     keepPreviousData: true,
   });
