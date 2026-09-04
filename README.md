@@ -11,6 +11,25 @@ extension hides them.
 > apps in one hub, which the store does not accept. You install it from source
 > (two commands, below) and it behaves exactly like a store extension afterwards.
 
+## Screenshots
+
+<p align="center"><img src="docs/screenshots/home-commands.jpg" width="800" alt="Homelab Home — the hub"></p>
+
+| | |
+|---|---|
+| **Homelab Stats** — CPU, memory, uptime, NAS pool, drive temps<br><img src="docs/screenshots/stats.jpg"> | **Top processes** — the same view scrolled down<br><img src="docs/screenshots/stats-processes.jpg"> |
+| **Homelab Downloads** — qBittorrent and SABnzbd live<br><img src="docs/screenshots/downloads.jpg"> | **Disk Health** — Scrutiny SMART for every host<br><img src="docs/screenshots/disk-health.jpg"> |
+| **Discover Media** — Jellyseerr trending and search<br><img src="docs/screenshots/discover-media.jpg"> | **Request from the grid** — all seasons or a profile<br><img src="docs/screenshots/discover-actions.jpg"> |
+| **Request History** — approve, decline, retry<br><img src="docs/screenshots/request-history.jpg"> | **Continue Watching** — Jellyfin resume and next up<br><img src="docs/screenshots/continue-watching.jpg"> |
+| **Media Calendar** — upcoming releases from the arr stack<br><img src="docs/screenshots/media-calendar.jpg"> | **Subtitles** — sync queue and Bazarr wanted list<br><img src="docs/screenshots/subtitles.jpg"> |
+| **Nudge Subtitles** — shift one file by ±ms<br><img src="docs/screenshots/nudge-subtitles.jpg"> | **Music Library** — Navidrome albums with cover art<br><img src="docs/screenshots/music-library.jpg"> |
+| **Album tracks** — format, bitrate, length<br><img src="docs/screenshots/album-tracks.jpg"> | **Audiobooks** — Audiobookshelf library<br><img src="docs/screenshots/audiobooks.jpg"> |
+| **Ebooks** — Calibre-Web with Send to Kindle<br><img src="docs/screenshots/ebooks.jpg"> | **Send to MeTube** — clipboard URL to a folder<br><img src="docs/screenshots/send-to-metube.jpg"> |
+| **Notifications** — ntfy messages with detail pane<br><img src="docs/screenshots/notifications.jpg"> | **Containers** — Komodo stacks, restart from Raycast<br><img src="docs/screenshots/containers.jpg"> |
+| **AdGuard Home** — protection toggle, stats, top blocked<br><img src="docs/screenshots/adguard.jpg"> | **Add Transaction** — Firefly Pico assistant parses "cg resto 400"<br><img src="docs/screenshots/add-transaction.jpg"> |
+
+<p align="center"><img src="docs/screenshots/raycast-search.jpg" width="800" alt="All commands are searchable from the Raycast root"></p>
+
 ## Commands
 
 | Command | What it does |
