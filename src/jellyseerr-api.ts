@@ -62,14 +62,14 @@ async function jsFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
-    if (res.status === 401 || res.status === 403)
-      msg += ` — ${describeSetting("jellyseerrApiKey")}`;
     try {
       const body = (await res.json()) as { message?: string };
       if (body.message) msg = body.message;
     } catch {
       // keep the status-code message
     }
+    if (res.status === 401 || res.status === 403)
+      msg += ` — ${describeSetting("jellyseerrApiKey")}`;
     throw new Error(msg);
   }
   return (await res.json()) as T;
