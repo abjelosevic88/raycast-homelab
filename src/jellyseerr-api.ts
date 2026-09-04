@@ -1,4 +1,10 @@
-import { has, optionalUrl, requireUrl, setting } from "./config";
+import {
+  describeSetting,
+  has,
+  optionalUrl,
+  requireUrl,
+  setting,
+} from "./config";
 
 export const JELLYSEERR_URL = optionalUrl("jellyseerrUrl");
 const TIMEOUT_MS = 10000;
@@ -56,6 +62,8 @@ async function jsFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
+    if (res.status === 401 || res.status === 403)
+      msg += ` — ${describeSetting("jellyseerrApiKey")}`;
     try {
       const body = (await res.json()) as { message?: string };
       if (body.message) msg = body.message;
@@ -380,5 +388,8 @@ export async function deleteRequest(requestId: number): Promise<void> {
     headers: { "X-Api-Key": key },
     signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok)
+    throw new Error(
+      `HTTP ${res.status}${res.status === 401 || res.status === 403 ? ` — ${describeSetting("jellyseerrApiKey")}` : ""}`,
+    );
 }

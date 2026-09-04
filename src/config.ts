@@ -82,6 +82,26 @@ export function setting(name: string): string {
   return (envFile()[envKey(name)] ?? "").trim();
 }
 
+/** Where a setting's value came from — for diagnostics in auth error messages. */
+export function settingSource(
+  name: string,
+): "preference" | "env file" | "unset" {
+  const prefs =
+    getPreferenceValues<Record<string, string | boolean | undefined>>();
+  const ui = prefs[name];
+  if (typeof ui === "string" && ui.trim()) return "preference";
+  if ((envFile()[envKey(name)] ?? "").trim()) return "env file";
+  return "unset";
+}
+
+/** Safe one-line description of a secret: source, length and first characters. Never the value. */
+export function describeSetting(name: string): string {
+  const src = settingSource(name);
+  if (src === "unset") return `${name} is unset`;
+  const v = setting(name);
+  return `${name} from ${src}: ${v.length} chars, starts "${v.slice(0, 3)}…"`;
+}
+
 /** True when every named setting is non-empty. */
 export function has(...names: string[]): boolean {
   return names.every((n) => setting(n));
