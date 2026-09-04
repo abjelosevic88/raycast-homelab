@@ -13,7 +13,7 @@ extension hides them.
 
 ## Screenshots
 
-<p align="center"><img src="docs/screenshots/home-now.jpg" width="800" alt="Homelab Home — Right Now status rows for server, NAS, downloads, monitors, Jellyfin, subtitles and money"></p>
+<p align="center"><img src="docs/screenshots/home-now.jpg" width="800" alt="Homelab Home — Right Now status rows for server, NAS, downloads, monitors, Jellyfin, subtitles and On This Day photos"></p>
 
 | | |
 |---|---|
