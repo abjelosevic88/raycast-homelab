@@ -9,6 +9,7 @@ import {
   Keyboard,
 } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useEffect } from "react";
 import {
   DL_URLS,
@@ -31,6 +32,7 @@ function stateColor(item: DownloadItem): Color {
 export default function Downloads() {
   const { data, isLoading, revalidate } = useCachedPromise(loadDownloads, [], {
     keepPreviousData: true,
+    onError: fetchError("Downloads"),
   });
 
   // live view: poll while the window is open

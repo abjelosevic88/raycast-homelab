@@ -11,6 +11,7 @@ import {
   Keyboard,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useState } from "react";
 import {
   actOnRequest,
@@ -54,7 +55,7 @@ export default function Requests() {
         return { data: res.results, hasMore: res.hasMore };
       },
     [filter, Boolean(key)],
-    { keepPreviousData: true },
+    { keepPreviousData: true, onError: fetchError("Jellyseerr") },
   );
 
   async function act(

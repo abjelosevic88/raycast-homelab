@@ -9,6 +9,7 @@ import {
   Toast,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useState } from "react";
 import {
   albumAssets,
@@ -151,9 +152,11 @@ export function MemoryGrid(props: { memories: Memory[] }) {
 }
 
 function AlbumGrid(props: { album: ImmichAlbum }) {
-  const { data, isLoading, revalidate } = useCachedPromise(albumAssets, [
-    props.album.id,
-  ]);
+  const { data, isLoading, revalidate } = useCachedPromise(
+    albumAssets,
+    [props.album.id],
+    { onError: fetchError("Immich") },
+  );
   return (
     <Grid
       isLoading={isLoading}
@@ -203,6 +206,7 @@ export default function Photos() {
     async (m: PhotoMode, ok: boolean) =>
       ok && m === "albums" ? await listAlbums() : [],
     [mode, hasKey],
+    { onError: fetchError("Immich") },
   );
 
   const seen = new Set<string>();

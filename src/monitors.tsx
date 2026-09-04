@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useEffect } from "react";
 import { hasKuma, KUMA_URL, loadKuma, MonitorStatus } from "./kuma-api";
 import NotConfigured from "./not-configured";
@@ -48,9 +49,7 @@ export default function Monitors() {
   const { data, isLoading, revalidate } = useCachedPromise(
     async (ok: boolean) => (ok ? await loadKuma() : undefined),
     [configured],
-    {
-      keepPreviousData: true,
-    },
+    { keepPreviousData: true, onError: fetchError("Uptime Kuma") },
   );
 
   useEffect(() => {

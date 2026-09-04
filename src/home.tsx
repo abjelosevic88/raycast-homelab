@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
+import { silentError } from "./fetch-error";
 import { useEffect } from "react";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
 import { DL_URLS, fmtSpeed, loadDownloads } from "./downloads-api";
@@ -222,15 +223,25 @@ function links(): { title: string; url: string; icon: Icon }[] {
 }
 
 export default function Home() {
-  const stats = useCachedPromise(loadStats, [], { keepPreviousData: true });
-  const dls = useCachedPromise(loadDownloads, [], { keepPreviousData: true });
+  const stats = useCachedPromise(loadStats, [], {
+    keepPreviousData: true,
+    onError: silentError("Server stats"),
+  });
+  const dls = useCachedPromise(loadDownloads, [], {
+    keepPreviousData: true,
+    onError: silentError("Downloads"),
+  });
   const kuma = useCachedPromise(() => quiet(loadKuma), [], {
     keepPreviousData: true,
   });
   const disks = useCachedPromise(loadDiskHealth, [], {
     keepPreviousData: true,
+    onError: silentError("Disk health"),
   });
-  const speed = useCachedPromise(loadSpeedtest, [], { keepPreviousData: true });
+  const speed = useCachedPromise(loadSpeedtest, [], {
+    keepPreviousData: true,
+    onError: silentError("Speedtest"),
+  });
   const backups = useCachedPromise(() => quiet(loadBackups), [], {
     keepPreviousData: true,
   });

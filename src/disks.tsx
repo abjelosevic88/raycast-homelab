@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { HEALTH_URLS } from "./health-api";
 import { has, requireUrl } from "./config";
 import NotConfigured from "./not-configured";
@@ -87,9 +88,7 @@ export default function Disks() {
   const { data, isLoading, revalidate } = useCachedPromise(
     async (ok: boolean) => (ok ? await loadDisks() : []),
     [configured],
-    {
-      keepPreviousData: true,
-    },
+    { keepPreviousData: true, onError: fetchError("Scrutiny") },
   );
 
   const hosts = [...new Set((data ?? []).map((d) => d.host))].sort();

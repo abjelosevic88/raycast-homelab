@@ -11,6 +11,7 @@ import {
   Keyboard,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { has, optionalUrl, requireUrl, setting } from "./config";
 import NotConfigured from "./not-configured";
 
@@ -78,7 +79,7 @@ export default function Containers() {
     async (ok: boolean) =>
       ok ? await komodo<StackListItem[]>("read", "ListStacks") : [],
     [hasCreds],
-    { keepPreviousData: true },
+    { keepPreviousData: true, onError: fetchError("Komodo") },
   );
 
   async function act(

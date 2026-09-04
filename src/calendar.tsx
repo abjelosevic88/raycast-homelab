@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import {
   ARR_URLS,
   CalendarEntry,
@@ -34,6 +35,7 @@ function dayHeader(date: string): string {
 export default function Calendar() {
   const { data, isLoading, revalidate } = useCachedPromise(loadArrData, [], {
     keepPreviousData: true,
+    onError: fetchError("Media calendar"),
   });
   const configured = configuredArrs();
 

@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useEffect, useState } from "react";
 import {
   hasNtfy,
@@ -26,9 +27,7 @@ export default function Notifications() {
   const { data, isLoading, revalidate } = useCachedPromise(
     async (ok: boolean) => (ok ? await loadNotifications() : []),
     [configured],
-    {
-      keepPreviousData: true,
-    },
+    { keepPreviousData: true, onError: fetchError("ntfy") },
   );
 
   useEffect(() => {

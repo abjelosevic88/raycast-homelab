@@ -12,6 +12,7 @@ import {
   useNavigation,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useState } from "react";
 import {
   hasSubsync,
@@ -88,7 +89,7 @@ export default function Nudge() {
         : listSubtitleFiles({ pinned: true, limit: 50 });
     },
     [query, configured],
-    { keepPreviousData: true },
+    { keepPreviousData: true, onError: fetchError("Subtitle sync server") },
   );
 
   // update the row locally; the server patches its own cache, so no slow refetch is needed

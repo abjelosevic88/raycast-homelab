@@ -9,6 +9,7 @@ import {
   Keyboard,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useState } from "react";
 import {
   AssistantData,
@@ -34,6 +35,7 @@ export default function Transaction() {
   const { data, isLoading } = useCachedPromise(
     async (ok: boolean) => (ok ? await loadAssistantData() : undefined),
     [hasToken],
+    { onError: fetchError("Firefly") },
   );
 
   const parsed = data ? parseAssistant(query, data.templates) : null;

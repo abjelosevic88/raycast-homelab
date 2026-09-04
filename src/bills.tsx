@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { has } from "./config";
 import { FIREFLY_URLS } from "./firefly-api";
 import {
@@ -21,6 +22,7 @@ const openActions = (
 export function MonthTransactions() {
   const { data, isLoading } = useCachedPromise(loadMonthTransactions, [], {
     keepPreviousData: true,
+    onError: fetchError("Firefly"),
   });
   const total = (data ?? []).reduce((s, t) => s + t.amount, 0);
   const currency = data?.[0]?.currency ?? "";
@@ -85,6 +87,7 @@ export function MonthTransactions() {
 export function BillsList() {
   const { data, isLoading } = useCachedPromise(loadBills, [], {
     keepPreviousData: true,
+    onError: fetchError("Firefly"),
   });
   const active = (data ?? []).filter((b) => b.active);
   const inactive = (data ?? []).filter((b) => !b.active);
@@ -159,12 +162,11 @@ export default function Bills() {
   const subs = useCachedPromise(
     async (ok: boolean) => (ok ? await loadSubscriptions() : undefined),
     [has("subscriptionsUrl")],
-    {
-      keepPreviousData: true,
-    },
+    { keepPreviousData: true, onError: fetchError("Subscriptions summary") },
   );
   const spend = useCachedPromise(loadMonthSpend, [], {
     keepPreviousData: true,
+    onError: fetchError("Firefly"),
   });
 
   return (

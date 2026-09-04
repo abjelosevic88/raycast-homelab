@@ -6,6 +6,7 @@ import {
   open,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { silentError } from "./fetch-error";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
 import { fmtSpeed, loadDownloads } from "./downloads-api";
 import { loadKuma } from "./kuma-api";
@@ -23,11 +24,12 @@ function openDownloads() {
 export default function MenuBar() {
   const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], {
     keepPreviousData: true,
+    onError: silentError("Server stats"),
   });
   const { data: dl, revalidate: revalidateDl } = useCachedPromise(
     loadDownloads,
     [],
-    { keepPreviousData: true },
+    { keepPreviousData: true, onError: silentError("Downloads") },
   );
   const kuma = useCachedPromise(
     async () => {

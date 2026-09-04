@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Detail, Icon } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { getDetails, jellyseerrPrefs, STATUS } from "./jellyseerr-api";
 import { doRequest, ProfileSubmenu, SeasonSubmenu } from "./media-actions";
 
@@ -19,9 +20,7 @@ export default function MediaDetail(props: {
   const { data, isLoading, revalidate } = useCachedPromise(
     getDetails,
     [props.mediaType, props.id],
-    {
-      keepPreviousData: true,
-    },
+    { keepPreviousData: true, onError: fetchError("Jellyseerr") },
   );
 
   const status = data?.status ? STATUS[data.status] : undefined;

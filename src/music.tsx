@@ -10,6 +10,7 @@ import {
   Keyboard,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useState } from "react";
 import {
   Album,
@@ -26,7 +27,13 @@ import {
 } from "./navidrome-api";
 
 function AlbumDetail(props: { album: Album }) {
-  const { data, isLoading } = useCachedPromise(getAlbumSongs, [props.album.id]);
+  const { data, isLoading } = useCachedPromise(
+    getAlbumSongs,
+    [props.album.id],
+    {
+      onError: fetchError("Navidrome"),
+    },
+  );
   const a = data?.album ?? props.album;
   return (
     <List

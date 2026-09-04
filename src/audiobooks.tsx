@@ -9,6 +9,7 @@ import {
   Keyboard,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useState } from "react";
 import {
   ABS_URL,
@@ -62,12 +63,14 @@ export default function Audiobooks() {
   const libraries = useCachedPromise(
     async (ok: boolean) => (ok ? await listLibraries() : []),
     [hasToken],
+    { onError: fetchError("Audiobookshelf") },
   );
   const activeLibrary = libraryId || libraries.data?.[0]?.id || "";
 
   const inProgress = useCachedPromise(
     async (ok: boolean) => (ok ? await continueListening() : []),
     [hasToken],
+    { onError: fetchError("Audiobookshelf") },
   );
 
   const itemsResult = useCachedPromise(

@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useEffect } from "react";
 import {
   fmtDisk,
@@ -82,9 +83,11 @@ function CommonActions(props: { onRefresh: () => void }) {
 export default function Stats() {
   const { data, isLoading, revalidate } = useCachedPromise(loadStats, [], {
     keepPreviousData: true,
+    onError: fetchError("Server stats"),
   });
   const procs = useCachedPromise(loadTopProcesses, [], {
     keepPreviousData: true,
+    onError: fetchError("Glances"),
   });
   const refreshAll = () => {
     revalidate();

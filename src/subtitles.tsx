@@ -1,5 +1,6 @@
 import { Action, ActionPanel, Color, Icon, List, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import {
   BAZARR_URL,
   hasBazarrKey,
@@ -14,15 +15,13 @@ export default function Subtitles() {
   const sync = useCachedPromise(
     async (ok: boolean) => (ok ? await loadSubsyncStatus() : undefined),
     [hasSubsync()],
-    { keepPreviousData: true },
+    { keepPreviousData: true, onError: fetchError("Subtitle sync server") },
   );
   const hasKey = hasBazarrKey();
   const wanted = useCachedPromise(
     async (ok: boolean) => (ok ? await loadWanted() : undefined),
     [hasKey],
-    {
-      keepPreviousData: true,
-    },
+    { keepPreviousData: true, onError: fetchError("Bazarr") },
   );
 
   const actions = (

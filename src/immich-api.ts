@@ -107,17 +107,16 @@ export interface Memory {
 
 // "On this day" memories whose show window covers today
 export async function loadTodayMemories(): Promise<Memory[]> {
-  const raw =
-    await api<
-      {
-        id: string;
-        type: string;
-        showAt: string;
-        hideAt: string;
-        data?: { year?: number };
-        assets: Photo[];
-      }[]
-    >("/api/memories");
+  const raw = await api<
+    {
+      id: string;
+      type: string;
+      showAt: string;
+      hideAt: string;
+      data?: { year?: number };
+      assets: Photo[];
+    }[]
+  >("/api/memories");
   const now = Date.now();
   return raw
     .filter(

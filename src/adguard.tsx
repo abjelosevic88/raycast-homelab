@@ -9,6 +9,7 @@ import {
   Toast,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
+import { fetchError } from "./fetch-error";
 import { useEffect } from "react";
 import {
   ADGUARD_URL,
@@ -122,9 +123,7 @@ export default function AdGuard() {
   const filters = useCachedPromise(
     async (ok: boolean) => (ok ? await loadFilters() : undefined),
     [hasCreds],
-    {
-      keepPreviousData: true,
-    },
+    { keepPreviousData: true, onError: fetchError("AdGuard") },
   );
 
   const refresh = () => {
