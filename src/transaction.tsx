@@ -40,17 +40,15 @@ export default function Transaction() {
 
   const parsed = data ? parseAssistant(query, data.templates) : null;
 
-  // Raycast keeps the selection on an item as long as its id survives a
-  // re-render. To land on the Assistant row (always first) after a template
-  // is picked or a typed line starts to parse, we bump an epoch that is part
-  // of every template id: the old selection disappears, Raycast selects the
-  // first item, and Enter = Add Transaction. No controlled selection, so no
-  // fight with Raycast's own selection handling.
-  const [epoch, setEpoch] = useState(0);
+  // One-shot selection jump. `jumpTo` is passed as selectedItemId only until
+  // Raycast reports that the row is selected, then it is released so the list
+  // is uncontrolled again (a permanently controlled id ping-pongs with
+  // Raycast's own selection handling on every re-render).
+  const [jumpTo, setJumpTo] = useState<string | undefined>(undefined);
   const wasParsed = useRef(false);
   useEffect(() => {
     const now = Boolean(parsed);
-    if (now && !wasParsed.current) setEpoch((e) => e + 1);
+    if (now && !wasParsed.current) setJumpTo("assistant");
     wasParsed.current = now;
   }, [Boolean(parsed)]);
 
@@ -131,6 +129,10 @@ export default function Transaction() {
       filtering={false}
       searchText={query}
       onSearchTextChange={setQuery}
+      selectedItemId={jumpTo}
+      onSelectionChange={(id) => {
+        if (jumpTo && id === jumpTo) setJumpTo(undefined);
+      }}
       searchBarPlaceholder="template  amount(currency)  description  ±Nd — e.g. gorivo 50 full tank -1d"
     >
       {!hasToken && (
@@ -143,6 +145,7 @@ export default function Transaction() {
       {parsed && data && (
         <List.Section title="Assistant">
           <List.Item
+            id="assistant"
             icon={{ source: Icon.PlusCircle, tintColor: Color.Green }}
             {...summarize(parsed, data)}
             actions={
@@ -175,7 +178,7 @@ export default function Transaction() {
             return (
               <List.Item
                 key={t.id}
-                id={`tpl-${t.id}-${epoch}`}
+                id={`tpl-${t.id}`}
                 icon={{ source: style.icon, tintColor: style.color }}
                 title={t.name}
                 subtitle={t.description !== t.name ? t.description : undefined}
@@ -201,7 +204,7 @@ export default function Transaction() {
                       icon={Icon.Pencil}
                       onAction={() => {
                         setQuery(`${t.name} `);
-                        setEpoch((e) => e + 1);
+                        setJumpTo("assistant");
                       }}
                     />
                     {t.amount !== undefined && defaults && (
