@@ -2,7 +2,7 @@
 
 Your whole homelab in one Raycast extension: server stats, downloads, media requests,
 uptime monitors, music, photos, audiobooks, ebooks, documents, native services, scheduled
-jobs, DNS, containers, backups and money. Twenty-six commands, including the **Home**
+jobs, DNS, containers, backups and money. Twenty-seven commands, including the **Home**
 hub that ties them together and a menu bar item.
 
 Every service is optional. Configure the ones you run, leave the rest empty, and the
@@ -57,6 +57,7 @@ extension hides them.
 | **Homelab Monitors** | Uptime Kuma: what is down right now |
 | **Notifications** | ntfy messages from the last seven days |
 | **Disk Health** | Scrutiny SMART status for every disk |
+| **Backup Health** | Backrest plan freshness, integrity checks, repository sizes, and disk/cloud usage across backup copies |
 | **Containers** | Komodo stacks: state, restart, start, stop |
 | **Services & Jobs** | Native systemd services and timers over SSH: state, last result, next run and recent logs |
 | **AdGuard Home** | Protection toggle, query stats, top blocked, recent log, blocklists |
@@ -67,12 +68,12 @@ extension hides them.
 
 - [Raycast](https://raycast.com) on macOS. Windows is untested; the env file path
   resolves to `C:\Users\you\.config` there, and the menu bar command depends on
-  Raycast for Windows supporting menu bar extras. The optional Services & Jobs
-  command requires OpenSSH available as `ssh`; other commands use HTTP and the
+  Raycast for Windows supporting menu bar extras. Services & Jobs and optional
+  backup storage measurements require OpenSSH available as `ssh`; other features use HTTP and the
   Raycast API. If you try it on Windows, open an issue with what works.
 - [Node.js](https://nodejs.org) 20 or newer (`brew install node`)
 - Network access to your services. Over Tailscale or a VPN is fine, the extension only
-  needs to reach the URLs you configure, plus SSH for Services & Jobs if enabled.
+  needs to reach the URLs you configure, plus SSH for Services & Jobs or backup storage if enabled.
 - For Services & Jobs: a Linux server with Python 3.9+, `systemctl` with JSON output
   support, and `journalctl` available to your SSH account. No server daemon installation is needed.
 
@@ -149,7 +150,7 @@ The env file is read once per command launch. After editing it, re-run the comma
 | AdGuard Home | `ADGUARD_URL`, `ADGUARD_USERNAME`, `ADGUARD_PASSWORD` | Web UI login |
 | Komodo | `KOMODO_URL`, `KOMODO_API_KEY`, `KOMODO_API_SECRET` | Settings → Profile → API keys |
 | Services & Jobs | `SERVICES_SSH_HOST`, optional `SERVICES_SSH_PORT`, `SERVICES_SSH_IDENTITY_FILE` | SSH account with noninteractive key or agent authentication and a trusted host key. See setup below. |
-| Backrest | `BACKREST_URL`, `BACKREST_USERNAME`, `BACKREST_PASSWORD` | Web UI login |
+| Backrest | `BACKREST_URL`, `BACKREST_USERNAME`, `BACKREST_PASSWORD`, optional `BACKREST_GRACE_HOURS` | Web UI login; freshness grace defaults to 2 hours. Actual storage uses the Services SSH settings and server inventory below. |
 | Scrutiny | `SCRUTINY_URL` | No auth |
 | Speedtest Tracker | `SPEEDTEST_URL` | Legacy open `/api/speedtest/latest` endpoint |
 | Firefly III | `FIREFLY_URL`, `FIREFLY_TOKEN` | Options → Profile → OAuth → Personal Access Tokens |
@@ -201,6 +202,77 @@ An overdue timer means its next deadline is in the past by more than its schedul
 accuracy or 60 seconds, whichever is longer; a running job is shown as running. Calendar runs skipped while the server
 was off cannot be reconstructed from this snapshot. Use your existing job alerts
 and backup history when you need proof that every expected run completed.
+
+### Backup Health
+
+Set the Backrest URL and login, then open **Backup Health** from Raycast, Home, or
+the menu bar. Every configured plan and repository appears, including manual plans
+and plans with no recorded successful run. The view shows the latest backup result,
+last successful backup, next scheduled run, latest integrity-check result, and last
+successful check. Failed, warning, cancelled, never-run and overdue states remain
+visible. A current run does not hide an overdue or previously failed backup.
+
+Freshness uses each schedule's nominal maximum interval, sampling eight consecutive
+cron gaps as Backrest does, plus **Backup Freshness Grace (Hours)** (default 2).
+Daily, weekly, five-field cron and hour/day frequency schedules are supported.
+This is an age check, not proof that every scheduled run happened. Manual/disabled
+plans have no automatic deadline; unsupported schedules show **Freshness unknown**.
+Next-run times come from Backrest. Integrity-check coverage displays the current
+policy: Backrest's historical operation records do not retain the check mode.
+
+Health queries read the full recorded operation history for each repository,
+including older successes hidden by busy repositories. Responses are bounded to
+16 MiB per request; an oversized or unavailable history is reported explicitly.
+Home and the command refresh health every minute; the menu bar follows its normal
+refresh interval. Failed refreshes show errors and mark any cached result.
+
+Storage has two separate measurements:
+
+- **Raw data (cached)** is the latest successful Backrest/restic repository statistic,
+  including its measurement date and snapshot count at that date. It represents
+  deduplicated, compressed data, not filesystem allocation. Each repository is
+  counted once even when several plans use it. Logical snapshot sizes are never summed.
+- **Backup Storage** measures allocated disk bytes for repository directories and
+  replica copies, current cloud object bytes, and staging space. These are separate
+  totals; do not add raw data to disk usage. Offline or failed locations are unknown
+  and excluded from the measured subtotal. Cloud figures exclude retained object
+  versions and billing overhead; filesystem figures exclude separate filesystem snapshots.
+
+For actual storage, configure **Services SSH Host** using the setup above. On that
+Linux server create `~/.config/raycast-homelab/backup-storage.json`, listing each
+repository or copy once. This inventory stays on your server and is not uploaded
+to Backrest or included in the extension repository. Example:
+
+```json
+{
+  "locations": [
+    { "id": "main", "label": "Main backup", "repoId": "main", "kind": "local", "group": "repository", "path": "/backups/restic-repo" },
+    { "id": "nas-copy", "label": "NAS copy", "repoId": "main", "kind": "ssh", "group": "replica", "host": "backup@nas", "path": "/tank/backups/restic-repo" },
+    { "id": "cloud-copy", "label": "Cloud copy", "repoId": "main", "kind": "rclone", "group": "replica", "path": "cloud:backups/restic-repo" },
+    { "id": "usb", "label": "USB backup", "kind": "local", "group": "repository", "path": "/mnt/usb/restic-repo", "requireMount": "/mnt/usb" },
+    { "id": "staging", "label": "Backup exports", "kind": "local", "group": "staging", "path": "/backups/staging" }
+  ]
+}
+```
+
+The extension streams its bundled Python collector over SSH; no daemon installation
+is needed. Local measurements require Python 3.9+ and GNU `du`. SSH locations require
+key/agent access and a trusted host key **from the server to the NAS**, GNU `du` and
+`timeout` on the NAS. An optional numeric `port` selects a nondefault NAS SSH port.
+Cloud locations use the server account's existing `rclone` configuration; put no
+passwords or access tokens in the inventory. Use absolute filesystem paths and a
+`requireMount` guard for removable local disks. The collector checks for a restic
+repository before measuring filesystem repositories/copies, and never mounts disks.
+
+Storage is measured only when opening the command or choosing **Refresh**, with
+bounded parallel queries and timeouts. Nothing starts a backup, verification,
+prune, restore or cloud sync. The SSH account needs read access to the configured
+locations; unreadable files cause an explicit measurement error.
+
+API and measurement references: [Backrest v1.14.1 API](https://github.com/garethgeorge/backrest/blob/v1.14.1/proto/v1/service.proto),
+[Backrest nominal schedule periods](https://github.com/garethgeorge/backrest/blob/v1.14.1/internal/protoutil/schedule.go),
+[restic statistics](https://restic.readthedocs.io/en/stable/045_working_with_repos.html),
+[rclone size](https://rclone.org/commands/rclone_size/).
 
 ### Paperless Search
 
@@ -281,6 +353,7 @@ npm run typecheck  # tsc
 npm run test:nextcloud # Nextcloud search, downloads and shares regression tests
 npm run test:paperless # Paperless API regression tests (no live credentials needed)
 npm run test:services # SSH transport and systemd collector regression tests
+npm run test:backups # Backrest health and backup storage collector regression tests
 npm run lint       # ray lint (macOS only); npm run lint:local runs eslint anywhere
 npm run gen:env    # regenerate .env.example from package.json
 ```

@@ -1,4 +1,12 @@
-import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Icon,
+  Keyboard,
+  List,
+  openExtensionPreferences,
+} from "@raycast/api";
 import { getProgressIcon, useCachedPromise } from "@raycast/utils";
 import { silentError } from "./fetch-error";
 import { useEffect } from "react";
@@ -19,6 +27,12 @@ import Audiobooks from "./audiobooks";
 import Calendar from "./calendar";
 import Containers from "./containers";
 import Services from "./services";
+import Backups from "./backups";
+import {
+  backupConnectionKey,
+  backupSummary,
+  loadBackupHealth,
+} from "./backups-api";
 import Metube from "./metube";
 import Disks from "./disks";
 import Jellyfin from "./jellyfin";
@@ -30,12 +44,7 @@ import Paperless from "./paperless";
 import Nextcloud from "./nextcloud";
 import Nudge from "./nudge";
 import { MemoryGrid } from "./photos";
-import {
-  HEALTH_URLS,
-  loadBackups,
-  loadDiskHealth,
-  loadSpeedtest,
-} from "./health-api";
+import { HEALTH_URLS, loadDiskHealth, loadSpeedtest } from "./health-api";
 import { KUMA_URL, loadKuma } from "./kuma-api";
 import {
   hasJellyfinKey,
@@ -161,6 +170,13 @@ const COMMANDS = [
     view: () => <Services />,
   },
   {
+    name: "backups",
+    title: "Backup Health",
+    subtitle: "Freshness · verification · disk and cloud usage",
+    icon: Icon.HardDrive,
+    view: () => <Backups />,
+  },
+  {
     name: "metube",
     title: "Send to MeTube",
     subtitle: "Clipboard URL → video or Navidrome dropbox",
@@ -242,7 +258,11 @@ function links(): { title: string; url: string; icon: Icon }[] {
     { title: "TrueNAS", url: URLS.truenas, icon: Icon.HardDrive },
     { title: "qBittorrent", url: DL_URLS.qbit, icon: Icon.Download },
     { title: "SABnzbd", url: DL_URLS.sab, icon: Icon.Download },
-    { title: "Paperless", url: optionalUrl("paperlessUrl"), icon: Icon.Document },
+    {
+      title: "Paperless",
+      url: optionalUrl("paperlessUrl"),
+      icon: Icon.Document,
+    },
     { title: "Forgejo", url: optionalUrl("forgejoUrl"), icon: Icon.Code },
   ].filter((l) => l.url);
 }
@@ -267,9 +287,19 @@ export default function Home() {
     keepPreviousData: true,
     onError: silentError("Speedtest"),
   });
-  const backups = useCachedPromise(() => quiet(loadBackups), [], {
-    keepPreviousData: true,
-  });
+  const backrestUrl = optionalUrl("backrestUrl");
+  const backups = useCachedPromise(
+    async (connectionKey: string) => {
+      void connectionKey; // Partition cached snapshots by Backrest connection.
+      return loadBackupHealth();
+    },
+    [backupConnectionKey()],
+    {
+      execute: Boolean(backrestUrl),
+      keepPreviousData: false,
+      onError: silentError("Backup health"),
+    },
+  );
   const jellyfin = useCachedPromise(
     (ok: boolean) => (ok ? quiet(loadSessions) : Promise.resolve(undefined)),
     [hasJellyfinKey()],
@@ -307,6 +337,12 @@ export default function Home() {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    if (!backrestUrl) return;
+    const timer = setInterval(() => void backups.revalidate(), 60_000);
+    return () => clearInterval(timer);
+  }, [backrestUrl, backups.revalidate]);
+
   const s = stats.data;
   const d = dls.data;
 
@@ -315,6 +351,18 @@ export default function Home() {
   const upSpeed = d?.qbit?.upSpeed ?? 0;
   const activeCount =
     (d?.qbit?.downloading.length ?? 0) + (d?.sab?.items.length ?? 0);
+  const backupNeedsAttention = Boolean(
+    backups.error ||
+    backups.data?.warnings.length ||
+    backups.data?.plans.some((plan) => plan.health.attention) ||
+    backups.data?.repositories.some((repo) => repo.health.attention),
+  );
+  const backupStale = Boolean(
+    backups.data &&
+    (backups.error ||
+      backups.isLoading ||
+      Date.now() - backups.data.fetchedAt > 120_000),
+  );
 
   return (
     <List
@@ -628,30 +676,52 @@ export default function Home() {
             }
           />
         )}
-        {backups.data && backups.data.length > 0 && (
+        {backrestUrl && (
           <List.Item
             icon={{
-              source: backups.data.some((b) => !b.ok)
-                ? Icon.Warning
-                : Icon.CheckCircle,
-              tintColor: backups.data.some((b) => !b.ok)
+              source:
+                backupNeedsAttention || backupStale
+                  ? Icon.Warning
+                  : Icon.HardDrive,
+              tintColor: backups.error
                 ? Color.Red
-                : Color.Green,
+                : backupNeedsAttention || backupStale
+                  ? Color.Orange
+                  : backups.data
+                    ? Color.Green
+                    : Color.SecondaryText,
             }}
             title="Backups"
             subtitle={
-              backups.data.some((b) => !b.ok)
-                ? `FAILED: ${backups.data
-                    .filter((b) => !b.ok)
-                    .map((b) => b.planId)
-                    .join(", ")}`
-                : `${backups.data.length} plans ok · last ${new Date(backups.data[0].when).toLocaleDateString()}`
+              backups.error
+                ? backups.error.message
+                : backups.data
+                  ? backupSummary(backups.data)
+                  : "Loading backup health…"
             }
+            accessories={[
+              ...(backupStale
+                ? [{ tag: { value: "Cached", color: Color.Orange } }]
+                : []),
+            ]}
             actions={
               <ActionPanel>
-                <Action.OpenInBrowser
-                  title="Open Backrest"
-                  url={HEALTH_URLS.backrest}
+                <Action.Push
+                  title="Open Backup Health"
+                  icon={Icon.HardDrive}
+                  target={<Backups />}
+                />
+                <Action.OpenInBrowser title="Open Backrest" url={backrestUrl} />
+                <Action
+                  title="Refresh Backups"
+                  icon={Icon.ArrowClockwise}
+                  shortcut={Keyboard.Shortcut.Common.Refresh}
+                  onAction={backups.revalidate}
+                />
+                <Action
+                  title="Configure Extension"
+                  icon={Icon.Gear}
+                  onAction={openExtensionPreferences}
                 />
               </ActionPanel>
             }

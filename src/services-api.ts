@@ -146,12 +146,13 @@ function sshError(
   );
 }
 
-async function collect(args: string[]): Promise<unknown> {
+async function collect(
+  args: string[],
+  asset = "services-jobs.py",
+  timeout = TIMEOUT_MS,
+): Promise<unknown> {
   const sshArgs = connectionArgs();
-  const source = await readFile(
-    join(environment.assetsPath, "services-jobs.py"),
-    "utf8",
-  );
+  const source = await readFile(join(environment.assetsPath, asset), "utf8");
   // The SSH protocol takes a remote shell command. Quote each argument even
   // though commands/scopes are fixed and unit names are validated separately.
   const command = ["python3", "-", ...args]
@@ -163,7 +164,7 @@ async function collect(args: string[]): Promise<unknown> {
       [...sshArgs, command],
       {
         encoding: "utf8",
-        timeout: TIMEOUT_MS,
+        timeout,
         killSignal: "SIGKILL",
         maxBuffer: MAX_OUTPUT,
         windowsHide: true,
@@ -186,6 +187,11 @@ async function collect(args: string[]): Promise<unknown> {
       "Services & Jobs returned invalid JSON. Check Python 3, systemd support and SSH login scripts that print output.",
     );
   }
+}
+
+/** The storage collector reads its destination inventory on the SSH server. */
+export async function collectBackupStorage(): Promise<unknown> {
+  return collect([], "backup-storage.py", 55_000);
 }
 
 function record(value: unknown): value is Record<string, unknown> {

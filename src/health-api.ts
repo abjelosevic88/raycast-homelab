@@ -1,4 +1,4 @@
-import { requireUrl, setting, urlGroup } from "./config";
+import { requireUrl, urlGroup } from "./config";
 
 export const HEALTH_URLS = urlGroup({
   backrest: "backrestUrl",
@@ -75,80 +75,4 @@ export async function loadSpeedtest(): Promise<SpeedtestResult> {
     ping: d.ping ?? 0,
     createdAt: d.created_at ?? "",
   };
-}
-
-// ---------- Backrest (login → operations) ----------
-
-let backrestToken: { value: string; at: number } | null = null;
-
-async function backrestLogin(): Promise<string> {
-  const url = requireUrl("backrestUrl", "Backrest");
-  const password = setting("backrestPassword");
-  if (!password) throw new Error("Backrest password not set");
-  if (backrestToken && Date.now() - backrestToken.at < 30 * 60 * 1000)
-    return backrestToken.value;
-  const res = await fetch(`${url}/v1.Authentication/Login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-    body: JSON.stringify({
-      username: setting("backrestUsername") || "admin",
-      password,
-    }),
-  });
-  if (!res.ok) throw new Error(`Backrest login → HTTP ${res.status}`);
-  const body = (await res.json()) as { token?: string };
-  if (!body.token) throw new Error("Backrest login: no token");
-  backrestToken = { value: body.token, at: Date.now() };
-  return body.token;
-}
-
-export interface BackupPlanStatus {
-  planId: string;
-  ok: boolean;
-  when: number; // unix ms
-}
-
-export async function loadBackups(): Promise<BackupPlanStatus[]> {
-  const token = await backrestLogin();
-  const res = await fetch(
-    `${requireUrl("backrestUrl", "Backrest")}/v1.Backrest/GetOperations`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      body: JSON.stringify({ lastN: "100" }),
-    },
-  );
-  if (!res.ok) throw new Error(`Backrest GetOperations → HTTP ${res.status}`);
-  const body = (await res.json()) as {
-    operations?: {
-      planId?: string;
-      status?: string;
-      unixTimeStartMs?: string | number;
-      operationBackup?: unknown;
-      op?: Record<string, unknown>;
-    }[];
-  };
-  const latest = new Map<string, BackupPlanStatus>();
-  for (const op of body.operations ?? []) {
-    const isBackup =
-      op.operationBackup !== undefined || (op.op && "operationBackup" in op.op);
-    if (!isBackup || !op.planId) continue;
-    if (op.status === "STATUS_INPROGRESS" || op.status === "STATUS_PENDING")
-      continue;
-    const when = Number(op.unixTimeStartMs ?? 0);
-    const prev = latest.get(op.planId);
-    if (!prev || when > prev.when) {
-      latest.set(op.planId, {
-        planId: op.planId,
-        ok: op.status === "STATUS_SUCCESS",
-        when,
-      });
-    }
-  }
-  return [...latest.values()].sort((a, b) => b.when - a.when);
 }

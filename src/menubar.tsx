@@ -1,4 +1,5 @@
 import {
+  Color,
   Icon,
   launchCommand,
   LaunchType,
@@ -10,7 +11,12 @@ import { silentError } from "./fetch-error";
 import { fmtDisk, fmtGiB, loadStats, URLS } from "./api";
 import { fmtSpeed, loadDownloads } from "./downloads-api";
 import { loadKuma } from "./kuma-api";
-import { HEALTH_URLS, loadBackups } from "./health-api";
+import { optionalUrl } from "./config";
+import {
+  backupConnectionKey,
+  backupSummary,
+  loadBackupHealth,
+} from "./backups-api";
 import { KUMA_URL } from "./kuma-api";
 
 function openIf(url: string) {
@@ -19,6 +25,10 @@ function openIf(url: string) {
 
 function openDownloads() {
   launchCommand({ name: "downloads", type: LaunchType.UserInitiated });
+}
+
+function openBackups() {
+  launchCommand({ name: "backups", type: LaunchType.UserInitiated });
 }
 
 export default function MenuBar() {
@@ -42,20 +52,53 @@ export default function MenuBar() {
     [],
     { keepPreviousData: true },
   );
+  const backrestUrl = optionalUrl("backrestUrl");
   const backups = useCachedPromise(
-    async () => {
-      try {
-        return await loadBackups();
-      } catch {
-        return undefined;
-      }
+    async (connectionKey: string) => {
+      void connectionKey; // Partition cached snapshots by Backrest connection.
+      return loadBackupHealth();
     },
-    [],
-    { keepPreviousData: true },
+    [backupConnectionKey()],
+    {
+      execute: Boolean(backrestUrl),
+      keepPreviousData: false,
+      onError: silentError("Backup health"),
+    },
   );
   const downMonitors = kuma.data?.monitors.filter((m) => m.status === 0) ?? [];
-  const failedBackups = backups.data?.filter((b) => !b.ok) ?? [];
-  const alerts = downMonitors.length + failedBackups.length;
+  const backupIssues = backrestUrl
+    ? [
+        ...(backups.data?.plans ?? [])
+          .filter((plan) => plan.health.attention)
+          .map((plan) => ({
+            id: `plan-${plan.id}`,
+            label: `${plan.id}: ${plan.health.label}`,
+            level: plan.health.level,
+          })),
+        ...(backups.data?.repositories ?? [])
+          .filter((repo) => repo.health.attention)
+          .map((repo) => ({
+            id: `repo-${repo.id}`,
+            label: `${repo.id}: ${repo.health.label}`,
+            level: repo.health.level,
+          })),
+        ...(backups.data?.warnings ?? []).map((warning, i) => ({
+          id: `warning-${i}`,
+          label: warning,
+          level: "warning",
+        })),
+      ]
+    : [];
+  const backupStale = Boolean(
+    backups.data &&
+    (backups.error ||
+      backups.isLoading ||
+      Date.now() - backups.data.fetchedAt > 120_000),
+  );
+  const alerts =
+    downMonitors.length +
+    backupIssues.length +
+    (backrestUrl && backups.error ? 1 : 0);
 
   const dlSpeed = (dl?.qbit?.dlSpeed ?? 0) + (dl?.sab?.speedBps ?? 0);
   const upSpeed = dl?.qbit?.upSpeed ?? 0;
@@ -70,11 +113,13 @@ export default function MenuBar() {
     data?.cpu !== undefined
       ? `${Math.round(data.cpu.percent)}%${cpuTemp !== undefined ? ` ${cpuTemp}°` : ""}`
       : undefined;
-  // ↓ marker while downloading, ⚠︎N when monitors are down or a backup failed
+  // ↓ marker while downloading, ⚠︎N for monitor or backup health issues.
   const title =
     baseTitle !== undefined
       ? `${baseTitle}${dlSpeed > 1e5 ? " ↓" : ""}${alerts > 0 ? ` ⚠︎${alerts}` : ""}`
-      : undefined;
+      : alerts > 0
+        ? `⚠︎${alerts}`
+        : undefined;
 
   return (
     <MenuBarExtra
@@ -152,14 +197,44 @@ export default function MenuBar() {
               onAction={() => openIf(KUMA_URL)}
             />
           ))}
-          {failedBackups.map((b) => (
+          {backrestUrl && backups.error && (
             <MenuBarExtra.Item
-              key={`bk-${b.planId}`}
-              icon={Icon.Warning}
-              title={`Backup failed: ${b.planId}`}
-              onAction={() => openIf(HEALTH_URLS.backrest)}
+              icon={{ source: Icon.Warning, tintColor: Color.Red }}
+              title={`Backup health unavailable${backups.data ? " — cached data" : ""}: ${backups.error.message}`}
+              onAction={openBackups}
+            />
+          )}
+          {backupIssues.map((issue) => (
+            <MenuBarExtra.Item
+              key={`bk-${issue.id}`}
+              icon={{
+                source: Icon.Warning,
+                tintColor: issue.level === "error" ? Color.Red : Color.Orange,
+              }}
+              title={`Backup${backupStale ? " (cached)" : ""}: ${issue.label}`}
+              onAction={openBackups}
             />
           ))}
+        </MenuBarExtra.Section>
+      )}
+      {backrestUrl && (
+        <MenuBarExtra.Section title="Backups">
+          <MenuBarExtra.Item
+            icon={Icon.HardDrive}
+            title={
+              backups.data
+                ? `${backupStale ? "Cached · " : ""}${backupSummary(backups.data)}`
+                : backups.error
+                  ? "Backup health unavailable"
+                  : "Loading backup health…"
+            }
+            onAction={openBackups}
+          />
+          <MenuBarExtra.Item
+            title="Backup Health and Storage…"
+            icon={Icon.HardDrive}
+            onAction={openBackups}
+          />
         </MenuBarExtra.Section>
       )}
       {hasActivity && (
@@ -208,6 +283,8 @@ export default function MenuBar() {
           onAction={() => {
             revalidate();
             revalidateDl();
+            kuma.revalidate();
+            if (backrestUrl) backups.revalidate();
           }}
         />
       </MenuBarExtra.Section>

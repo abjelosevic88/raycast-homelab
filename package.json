@@ -216,6 +216,22 @@
       ]
     },
     {
+      "name": "backups",
+      "title": "Backup Health",
+      "subtitle": "Homelab",
+      "description": "Backup freshness, integrity checks, repository sizes and disk/cloud usage across backup copies",
+      "mode": "view",
+      "keywords": [
+        "backrest",
+        "restic",
+        "backup",
+        "storage",
+        "disk",
+        "cloud",
+        "verification"
+      ]
+    },
+    {
       "name": "jellyfin",
       "title": "Continue Watching",
       "subtitle": "Homelab",
@@ -823,6 +839,14 @@
       "required": false
     },
     {
+      "name": "backrestGraceHours",
+      "title": "Backup Freshness Grace (Hours)",
+      "description": "Extra time beyond each backup/check schedule before it is overdue. Defaults to 2 hours. Manual plans have no deadline.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "2"
+    },
+    {
       "name": "scrutinyUrl",
       "title": "Scrutiny URL",
       "description": "Base URL of your Scrutiny instance. Leave empty to hide Scrutiny features.",
@@ -902,6 +926,7 @@
   "dependencies": {
     "@raycast/api": "^1.88.4",
     "@raycast/utils": "^1.18.1",
+    "cron-parser": "^5.10.0",
     "fast-xml-parser": "^5.11.1"
   },
   "devDependencies": {
@@ -921,7 +946,8 @@
     "fix-lint": "ray lint --fix",
     "gen:env": "node scripts/gen-env-example.mjs",
     "test:nextcloud": "node --test scripts/nextcloud-api.test.cjs",
-    "test:services": "node --test scripts/services-api.test.cjs && python3 scripts/services-jobs.test.py"
+    "test:services": "node --test scripts/services-api.test.cjs && python3 scripts/services-jobs.test.py",
+    "test:backups": "node --test scripts/backups-api.test.cjs && python3 scripts/backup-storage.test.py"
   },
   "categories": [
     "Developer Tools",
