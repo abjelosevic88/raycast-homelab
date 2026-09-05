@@ -194,6 +194,18 @@ export async function collectBackupStorage(): Promise<unknown> {
   return collect([], "backup-storage.py", 55_000);
 }
 
+/** Resolve a destination ID against the server inventory before browsing it. */
+export async function collectBackupStorageBreakdown(
+  locationId: string,
+  relativePath: string,
+): Promise<unknown> {
+  return collect(
+    ["breakdown", locationId, relativePath],
+    "backup-storage.py",
+    55_000,
+  );
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

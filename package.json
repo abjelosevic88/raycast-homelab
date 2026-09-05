@@ -947,7 +947,7 @@
     "gen:env": "node scripts/gen-env-example.mjs",
     "test:nextcloud": "node --test scripts/nextcloud-api.test.cjs",
     "test:services": "node --test scripts/services-api.test.cjs && python3 scripts/services-jobs.test.py",
-    "test:backups": "node --test scripts/backups-api.test.cjs && python3 scripts/backup-storage.test.py"
+    "test:backups": "node --test scripts/backups-api.test.cjs scripts/backup-storage-api.test.cjs && python3 scripts/backup-storage.test.py"
   },
   "categories": [
     "Developer Tools",

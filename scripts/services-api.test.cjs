@@ -65,6 +65,7 @@ function fixture(handler = () => ({ stdout: JSON.stringify(snapshot) })) {
     servicesSshIdentityFile: "",
   };
   const calls = [];
+  const readPaths = [];
   const execFile = (file, args, options, callback) => {
     const call = { file, args, options, input: null };
     calls.push(call);
@@ -97,18 +98,24 @@ function fixture(handler = () => ({ stdout: JSON.stringify(snapshot) })) {
     if (name === "node:fs/promises")
       return {
         readFile: async (file) => {
-          assert.equal(file, "/extension/assets/services-jobs.py");
+          readPaths.push(file);
+          assert.ok(
+            [
+              "/extension/assets/services-jobs.py",
+              "/extension/assets/backup-storage.py",
+            ].includes(file),
+          );
           return "# bundled collector\n";
         },
       };
     return require(name);
   };
   new Function("require", "exports", source)(fakeRequire, exports);
-  return { api: exports, settings, calls };
+  return { api: exports, settings, calls, readPaths };
 }
 
 test("SSH streams the bundled collector using bounded noninteractive read-only commands", async () => {
-  const { api, calls, settings } = fixture();
+  const { api, calls, settings, readPaths } = fixture();
   settings.servicesSshPort = "2222";
   settings.servicesSshIdentityFile = "~/.ssh/key with spaces";
   assert.deepEqual(await api.loadServices(), snapshot);
@@ -136,6 +143,68 @@ test("SSH streams the bundled collector using bounded noninteractive read-only c
   assert.equal(call.options.maxBuffer, 4 * 1024 * 1024);
   assert.equal(call.options.shell, undefined);
   assert.equal(call.input, "# bundled collector\n");
+  assert.deepEqual(readPaths, ["/extension/assets/services-jobs.py"]);
+});
+
+test("backup inventory and folder browsing stream only the fixed storage collector with a 55-second cap", async () => {
+  const { api, calls, readPaths } = fixture();
+  assert.deepEqual(await api.collectBackupStorage(), snapshot);
+  const id = "Cloud account's $(literal); `name`";
+  const folder = "Photos 2026/Family's $(literal); `archive`";
+  assert.deepEqual(
+    await api.collectBackupStorageBreakdown(id, folder),
+    snapshot,
+  );
+  assert.deepEqual(readPaths, [
+    "/extension/assets/backup-storage.py",
+    "/extension/assets/backup-storage.py",
+  ]);
+  assert.equal(calls[0].args.at(-1), "'python3' '-'");
+  assert.equal(
+    calls[1].args.at(-1),
+    "'python3' '-' 'breakdown' 'Cloud account'\\''s $(literal); `name`' 'Photos 2026/Family'\\''s $(literal); `archive`'",
+  );
+  for (const call of calls) {
+    assert.equal(call.file, "ssh");
+    assert.deepEqual(call.args.slice(-3, -1), ["--", "user@host"]);
+    assert.equal(call.options.timeout, 55_000);
+    assert.equal(call.options.killSignal, "SIGKILL");
+    assert.equal(call.options.maxBuffer, 4 * 1024 * 1024);
+    assert.equal(call.options.shell, undefined);
+    assert.equal(call.options.env.SSH_ASKPASS_REQUIRE, "never");
+    assert.equal(call.input, "# bundled collector\n");
+    for (const option of [
+      "BatchMode=yes",
+      "StrictHostKeyChecking=yes",
+      "ClearAllForwardings=yes",
+      "PermitLocalCommand=no",
+      "ForwardAgent=no",
+      "ForwardX11=no",
+      "RequestTTY=no",
+    ])
+      assert.ok(call.args.includes(option));
+  }
+});
+
+test("backup browsing rejects unsafe SSH destinations before reading or starting the collector", async () => {
+  const { api, calls, settings, readPaths } = fixture();
+  for (const host of [
+    "",
+    "-oProxyCommand=bad",
+    "host;id",
+    "$(id)",
+    "user@host\nother",
+    "user@-o",
+  ]) {
+    settings.servicesSshHost = host;
+    await assert.rejects(api.collectBackupStorage(), /SSH Host/);
+    await assert.rejects(
+      api.collectBackupStorageBreakdown("cloud-personal", "photos"),
+      /SSH Host/,
+    );
+  }
+  assert.equal(calls.length, 0);
+  assert.equal(readPaths.length, 0);
 });
 
 test("bad hosts, ports, key paths, scopes and unit names are rejected before starting SSH", async () => {

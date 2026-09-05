@@ -1,12 +1,4 @@
-import {
-  Action,
-  ActionPanel,
-  Color,
-  Icon,
-  Keyboard,
-  List,
-  openExtensionPreferences,
-} from "@raycast/api";
+import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useEffect } from "react";
 import { optionalUrl } from "./config";
@@ -28,6 +20,10 @@ import {
   loadBackupStorage,
 } from "./backup-storage-api";
 import { BackupStorageLocation } from "./backup-storage-types";
+import {
+  BackupActions as CommonActions,
+  StorageBreakdown,
+} from "./backup-storage";
 
 const HEALTH_POLL_MS = 60_000;
 const COLORS: Record<BackupLevel, Color> = {
@@ -60,26 +56,6 @@ function runLabel(run?: BackupRun): string {
   return run
     ? `${run.status} · ${dateLabel(run.finishedAt ?? run.startedAt)}`
     : "Never recorded";
-}
-
-function CommonActions({ refresh }: { refresh: () => void }) {
-  const url = optionalUrl("backrestUrl");
-  return (
-    <>
-      <Action
-        title="Refresh"
-        icon={Icon.ArrowClockwise}
-        shortcut={Keyboard.Shortcut.Common.Refresh}
-        onAction={refresh}
-      />
-      {url && <Action.OpenInBrowser title="Open Backrest" url={url} />}
-      <Action
-        title="Configure Extension"
-        icon={Icon.Gear}
-        onAction={openExtensionPreferences}
-      />
-    </>
-  );
 }
 
 function PlanDetail({ plan, stale }: { plan: BackupPlan; stale: boolean }) {
@@ -172,7 +148,7 @@ function LocationDetail({
   const cloud = location.kind === "rclone";
   return (
     <List.Item.Detail
-      markdown={`## ${markdownText(location.label)}\n\n${location.status === "ok" ? (cloud ? "Current cloud object bytes. Provider-retained versions and billing overhead may occupy additional storage." : "Allocated filesystem bytes for this backup location, including repository files and overhead.") : markdownText(location.error ?? "This location could not be measured.")}\n\n${location.status !== "ok" ? "**Unknown usage is excluded from the measured subtotal; it is not zero.**\n\n" : ""}${stale ? "**Cached measurement. Refresh to measure storage again.**\n\n" : ""}${location.group === "staging" ? "Staging contains backup exports or working files and is reported separately from retained backup copies." : "Each physical backup copy contributes separately to disk or cloud usage. Do not add the raw-data statistic to this measurement."}`}
+      markdown={`## ${markdownText(location.label)}\n\nPress Return to see the largest folders and files in this destination.\n\n${location.status === "ok" ? (cloud ? "Current cloud object bytes. Provider-retained versions and billing overhead may occupy additional storage." : "Allocated filesystem bytes for this backup location, including repository files and overhead.") : markdownText(location.error ?? "This location could not be measured.")}\n\n${location.status !== "ok" ? "**Unknown usage is excluded from the measured subtotal; it is not zero.**\n\n" : ""}${stale ? "**Cached measurement. Refresh to measure storage again.**\n\n" : ""}${location.group === "staging" ? "Staging contains backup exports or working files and is reported separately from retained backup copies." : "Each physical backup copy contributes separately to disk or cloud usage. Do not add the raw-data statistic to this measurement."}`}
       metadata={
         <M>
           <M.Label title="Status" text={location.status} />
@@ -310,13 +286,49 @@ export default function Backups() {
   const hasStaging = usage?.locations.some(
     (location) => location.group === "staging" && location.bytes !== undefined,
   );
+  const storageGroups = [
+    {
+      title: "Cloud Destinations",
+      locations:
+        usage?.locations.filter(
+          (location) =>
+            location.kind === "rclone" && location.group !== "staging",
+        ) ?? [],
+    },
+    {
+      title: "Disk Destinations",
+      locations:
+        usage?.locations.filter(
+          (location) =>
+            location.kind !== "rclone" && location.group !== "staging",
+        ) ?? [],
+    },
+    {
+      title: "Staging",
+      locations:
+        usage?.locations.filter((location) => location.group === "staging") ??
+        [],
+    },
+  ].map((group) => {
+    const measured = group.locations.filter(
+      (location) => location.bytes !== undefined,
+    );
+    return {
+      ...group,
+      locations: [...group.locations].sort(
+        (a, b) =>
+          (b.bytes ?? -1) - (a.bytes ?? -1) || a.label.localeCompare(b.label),
+      ),
+      subtitle: `${formatBackupBytes(measured.length ? measured.reduce((sum, location) => sum + location.bytes!, 0) : undefined)} · ${group.locations.length} destination${group.locations.length === 1 ? "" : "s"}${measured.length < group.locations.length ? " · partial coverage" : ""}`,
+    };
+  });
 
   return (
     <List
       navigationTitle="Backup Health"
       isLoading={health.isLoading || storage.isLoading}
       isShowingDetail
-      searchBarPlaceholder="Search plans, repositories, or backup copies…"
+      searchBarPlaceholder="Search backup destinations, plans, or repositories…"
     >
       <List.EmptyView
         title="No Matching Backups"
@@ -444,7 +456,7 @@ export default function Backups() {
                   ? "Set the Services SSH Host preference and configure the server's backup storage inventory as described in the README to measure repositories, replicas and staging directories."
                   : storage.error
                     ? markdownText(storage.error.message)
-                    : "Disk totals include measured repository and replica allocation. Cloud totals include current object bytes. Staging is separate. These totals do not include the raw-data statistic above.",
+                    : "Choose a destination below and press Return to explore its space usage. Disk totals include measured repository and replica allocation. Cloud totals include current object bytes. Staging is separate. These totals do not include the raw-data statistic above.",
                 partialStorage
                   ? "**Some locations are offline or could not be measured. The displayed totals cover only measured locations; unknown sizes are not zero.**"
                   : "",
@@ -493,63 +505,90 @@ export default function Backups() {
           }
           actions={actions}
         />
-        {usage?.locations.map((location) => (
-          <List.Item
-            key={`location-${location.id}`}
-            title={location.label}
-            keywords={[
-              location.group,
-              location.kind,
-              location.repoId ?? "",
-              location.status,
-            ]}
-            icon={{
-              source:
-                location.status === "ok"
-                  ? location.kind === "rclone"
-                    ? Icon.Cloud
-                    : Icon.HardDrive
-                  : Icon.Warning,
-              tintColor:
-                location.status === "ok"
-                  ? Color.SecondaryText
-                  : location.status === "offline"
-                    ? Color.Orange
-                    : Color.Red,
-            }}
-            accessories={[
-              { text: formatBackupBytes(location.bytes) },
-              {
-                tag: {
-                  value:
-                    location.status === "ok"
-                      ? location.group === "staging"
-                        ? "Staging"
-                        : location.kind === "rclone"
-                          ? "Cloud"
-                          : "Disk"
-                      : location.status,
-                  color:
-                    location.status === "ok"
-                      ? Color.SecondaryText
-                      : Color.Orange,
-                },
-              },
-              ...(storageStale
-                ? [{ tag: { value: "Cached", color: Color.Orange } }]
-                : []),
-            ]}
-            detail={
-              <LocationDetail
-                location={location}
-                collectedAt={usage.collectedAt}
-                stale={storageStale}
-              />
-            }
-            actions={actions}
-          />
-        ))}
       </List.Section>
+      {usage &&
+        storageGroups
+          .filter((group) => group.locations.length)
+          .map((group) => (
+            <List.Section
+              key={group.title}
+              title={group.title}
+              subtitle={group.subtitle}
+            >
+              {group.locations.map((location) => (
+                <List.Item
+                  key={`location-${location.id}`}
+                  title={location.label}
+                  keywords={[
+                    location.group,
+                    location.kind,
+                    location.repoId ?? "",
+                    location.status,
+                  ]}
+                  icon={{
+                    source:
+                      location.status === "ok"
+                        ? location.kind === "rclone"
+                          ? Icon.Cloud
+                          : Icon.HardDrive
+                        : Icon.Warning,
+                    tintColor:
+                      location.status === "ok"
+                        ? Color.SecondaryText
+                        : location.status === "offline"
+                          ? Color.Orange
+                          : Color.Red,
+                  }}
+                  accessories={[
+                    { text: formatBackupBytes(location.bytes) },
+                    {
+                      tag: {
+                        value:
+                          location.status === "ok"
+                            ? location.group === "staging"
+                              ? "Staging"
+                              : location.group === "replica"
+                                ? "Replica"
+                                : "Repository"
+                            : location.status,
+                        color:
+                          location.status === "ok"
+                            ? Color.SecondaryText
+                            : Color.Orange,
+                      },
+                    },
+                    ...(storageStale
+                      ? [{ tag: { value: "Cached", color: Color.Orange } }]
+                      : []),
+                  ]}
+                  detail={
+                    <LocationDetail
+                      location={location}
+                      collectedAt={usage.collectedAt}
+                      stale={storageStale}
+                    />
+                  }
+                  actions={
+                    <ActionPanel>
+                      <Action.Push
+                        title="Show Space Usage"
+                        icon={Icon.Folder}
+                        target={
+                          <StorageBreakdown
+                            location={location}
+                            plans={snapshot?.plans.filter(
+                              (plan) => plan.repoId === location.repoId,
+                            )}
+                          />
+                        }
+                      />
+                      <CommonActions refresh={refresh} />
+                    </ActionPanel>
+                  }
+                />
+              ))}
+            </List.Section>
+          ))}
       <List.Section title="Plans" subtitle={`${plans.length} configured`}>
         {plans.map((plan) => (
           <List.Item

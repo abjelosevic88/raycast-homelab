@@ -57,7 +57,7 @@ extension hides them.
 | **Homelab Monitors** | Uptime Kuma: what is down right now |
 | **Notifications** | ntfy messages from the last seven days |
 | **Disk Health** | Scrutiny SMART status for every disk |
-| **Backup Health** | Backrest plan freshness, integrity checks, repository sizes, and disk/cloud usage across backup copies |
+| **Backup Health** | Backrest plan freshness, integrity checks, storage per disk/cloud destination, and largest-folder/file browsing |
 | **Containers** | Komodo stacks: state, restart, start, stop |
 | **Services & Jobs** | Native systemd services and timers over SSH: state, last result, next run and recent logs |
 | **AdGuard Home** | Protection toggle, query stats, top blocked, recent log, blocklists |
@@ -238,6 +238,28 @@ Storage has two separate measurements:
   and excluded from the measured subtotal. Cloud figures exclude retained object
   versions and billing overhead; filesystem figures exclude separate filesystem snapshots.
 
+Cloud destinations (for example, Google Drive and Backblaze B2), disk destinations,
+and staging appear in separate sections, each sorted by measured size. Select a
+destination and press **Enter → Show Space Usage** to see its largest folders and
+files. Each entry shows its size and percentage of the current folder. Open a folder
+to continue browsing; Escape returns to the parent view. Measurements are loaded
+on demand and can be refreshed independently.
+
+For restic repositories, the `data` folder contains shared encrypted backup data;
+`index`, `snapshots`, and `keys` contain repository metadata. Space Usage explains
+these categories. Related plans' latest logical snapshot sizes provide context,
+but are not assigned a share of the physical storage: compression and deduplication
+share data across plans and snapshots. Staging directories show their actual
+folder/file names. Browsing stays within the configured backup destination and
+does not follow symlinks.
+
+At most the 200 largest entries are displayed per folder. Any omitted entries and
+directory allocation appear as remaining space, so they are not mistaken for free
+space. Oversized, timed-out or unreadable listings report an error instead of an
+incomplete total. Disk percentages use allocated bytes; cloud percentages use
+current object bytes. A destination's backup folder is the browsing root, not the
+entire cloud account or disk.
+
 For actual storage, configure **Services SSH Host** using the setup above. On that
 Linux server create `~/.config/raycast-homelab/backup-storage.json`, listing each
 repository or copy once. This inventory stays on your server and is not uploaded
@@ -258,7 +280,8 @@ to Backrest or included in the extension repository. Example:
 The extension streams its bundled Python collector over SSH; no daemon installation
 is needed. Local measurements require Python 3.9+ and GNU `du`. SSH locations require
 key/agent access and a trusted host key **from the server to the NAS**, GNU `du` and
-`timeout` on the NAS. An optional numeric `port` selects a nondefault NAS SSH port.
+`timeout` on the NAS; folder browsing additionally requires Python 3.9+ there.
+An optional numeric `port` selects a nondefault NAS SSH port.
 Cloud locations use the server account's existing `rclone` configuration; put no
 passwords or access tokens in the inventory. Use absolute filesystem paths and a
 `requireMount` guard for removable local disks. The collector checks for a restic

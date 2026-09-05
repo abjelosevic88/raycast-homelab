@@ -26,3 +26,25 @@ export interface BackupStorageSnapshot {
   measuredLocations: number;
   totalLocations: number;
 }
+
+export interface BackupStorageEntry {
+  name: string;
+  /** Relative to the configured location; never a server path or cloud URL. */
+  relativePath: string;
+  kind: "directory" | "file" | "symlink";
+  bytes?: number;
+  objectCount?: number;
+}
+
+export interface BackupStorageBreakdown {
+  collectedAt: string;
+  location: BackupStorageLocation;
+  /** Empty at the root of this destination. */
+  relativePath: string;
+  entries: BackupStorageEntry[];
+  totalBytes?: number;
+  /** Space outside the displayed entries, including directory allocation. */
+  otherBytes?: number;
+  truncated: boolean;
+  errors: string[];
+}
