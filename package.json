@@ -2,6 +2,10 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "homelab",
   "title": "Homelab",
+  "platforms": [
+    "macOS",
+    "Windows"
+  ],
   "description": "Your whole homelab in Raycast: stats, downloads, media requests, monitors, music, photos, books, documents, services, jobs, DNS, backups and money — one hub, every service optional.",
   "icon": "icon.png",
   "author": "aleksandar",

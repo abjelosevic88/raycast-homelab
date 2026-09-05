@@ -66,11 +66,11 @@ extension hides them.
 
 ## Requirements
 
-- [Raycast](https://raycast.com) on macOS. Windows is untested; the env file path
-  resolves to `C:\Users\you\.config` there, and the menu bar command depends on
+- [Raycast](https://raycast.com) on macOS or Windows. On Windows the env file lives at
+  `C:\Users\you\.config\raycast-homelab\.env`, and the menu bar command depends on
   Raycast for Windows supporting menu bar extras. Services & Jobs and optional
-  backup storage measurements require OpenSSH available as `ssh`; other features use HTTP and the
-  Raycast API. If you try it on Windows, open an issue with what works.
+  backup storage measurements require OpenSSH available as `ssh` (built into Windows 10+);
+  other features use HTTP and the Raycast API.
 - [Node.js](https://nodejs.org) 20 or newer (`brew install node`)
 - Network access to your services. Over Tailscale or a VPN is fine, the extension only
   needs to reach the URLs you configure, plus SSH for Services & Jobs or backup storage if enabled.
