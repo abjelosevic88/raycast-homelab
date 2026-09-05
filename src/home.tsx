@@ -26,6 +26,7 @@ import Bills, { BillsList, MonthTransactions } from "./bills";
 import Indexers from "./indexers";
 import Books from "./books";
 import Paperless from "./paperless";
+import Nextcloud from "./nextcloud";
 import Nudge from "./nudge";
 import { MemoryGrid } from "./photos";
 import {
@@ -60,6 +61,13 @@ async function quiet<T>(fn: () => Promise<T>): Promise<T | undefined> {
 
 // Pushed (not launched) so Esc/Back returns here instead of the Raycast root
 const COMMANDS = [
+  {
+    name: "nextcloud",
+    title: "Nextcloud Files and Sharing",
+    subtitle: "Search · OCR · download · share",
+    icon: Icon.Folder,
+    view: () => <Nextcloud />,
+  },
   {
     name: "stats",
     title: "Homelab Stats",

@@ -306,6 +306,21 @@
         "offset",
         "srt"
       ]
+    },
+    {
+      "name": "nextcloud",
+      "title": "Nextcloud Files and Sharing",
+      "subtitle": "Homelab",
+      "description": "Browse, download and share files; search document contents and OCR with Elasticsearch",
+      "mode": "view",
+      "keywords": [
+        "nextcloud",
+        "files",
+        "download",
+        "share",
+        "elasticsearch",
+        "ocr"
+      ]
     }
   ],
   "preferences": [
@@ -822,6 +837,27 @@
       "type": "textfield",
       "required": false,
       "placeholder": "https://git.example.com"
+    },
+    {
+      "name": "nextcloudUrl",
+      "title": "Nextcloud URL",
+      "description": "Base URL of Nextcloud, including its subpath if any.",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "nextcloudUsername",
+      "title": "Nextcloud Username",
+      "description": "Your Nextcloud user ID (not display name).",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "nextcloudAppPassword",
+      "title": "Nextcloud App Password",
+      "description": "Create an app password in Nextcloud → Personal settings → Security.",
+      "type": "password",
+      "required": false
     }
   ],
   "dependencies": {
@@ -844,7 +880,8 @@
     "lint": "ray lint",
     "lint:local": "eslint src",
     "fix-lint": "ray lint --fix",
-    "gen:env": "node scripts/gen-env-example.mjs"
+    "gen:env": "node scripts/gen-env-example.mjs",
+    "test:nextcloud": "node --test scripts/nextcloud-api.test.cjs"
   },
   "categories": [
     "Developer Tools",

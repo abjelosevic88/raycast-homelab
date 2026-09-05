@@ -50,6 +50,7 @@ extension hides them.
 | **Photos** | Immich browse, smart search, on-this-day memories |
 | **Audiobooks** | Audiobookshelf continue listening, browse, search |
 | **Ebooks** | Calibre-Web search, download, send to Kindle |
+| **Nextcloud Files and Sharing** | Recent files, folder browsing, Elasticsearch/OCR search, downloads, expiring share links and revocation |
 | **Paperless Search** | Recent documents and full-text OCR search, tags and correspondent, preview, open and download |
 | **Send to MeTube** | Queue a video or audio download from the URL on your clipboard |
 | **Homelab Monitors** | Uptime Kuma: what is down right now |
@@ -136,6 +137,7 @@ The env file is read once per command launch. After editing it, re-run the comma
 | Navidrome | `NAVIDROME_URL`, `NAVIDROME_USER`, `NAVIDROME_PASSWORD` | Any user. Subsonic token auth. |
 | Immich | `IMMICH_URL`, `IMMICH_API_KEY` | Account Settings → API Keys |
 | Calibre-Web | `CALIBRE_URL`, `CALIBRE_USER`, `CALIBRE_PASSWORD` | Web UI login |
+| Nextcloud | `NEXTCLOUD_URL`, `NEXTCLOUD_USERNAME`, `NEXTCLOUD_APP_PASSWORD` | User ID and app password from Personal settings → Security. |
 | Paperless-ngx | `PAPERLESS_URL`, `PAPERLESS_TOKEN` | Your Paperless profile → API Auth Token. The token uses your user's document permissions. |
 | MeTube | `METUBE_URL`, `METUBE_FOLDERS` | No auth. Folders: `name\|Label[\|video],…` |
 | Uptime Kuma | `KUMA_URL`, `KUMA_STATUS_SLUG` or `KUMA_API_KEY` | Status page slug needs no key. Settings → API Keys for all monitors. |
@@ -167,6 +169,50 @@ default macOS app. You can also open the document in Paperless or save its origi
 file or archived PDF (when available) to Downloads. **Copy OCR Text** copies the full
 extracted text. Files larger than 100 MB can be downloaded through Paperless instead.
 
+### Nextcloud Files and Sharing
+
+Set the Nextcloud URL, user ID and app password in extension preferences or the env
+file. Use the instance base URL (including any installation subpath), without
+`remote.php` or `ocs/v2.php`. The account's existing file permissions apply.
+
+Open **Nextcloud Files and Sharing** from Raycast or Homelab Home:
+
+- An empty query shows the 200 most recently modified files. **Browse All Files**
+  opens folders, with a local filter for the current folder.
+- Typing searches your existing full-text index. **Advanced Search Options** (⌘F)
+  selects all indexed text including OCR, main document text (including image OCR), indexed
+  filenames, or filename search through WebDAV. You can limit results to one
+  extension, such as `pdf`, `png` or `docx`. Full-text queries support quoted
+  phrases, `+required` and `-excluded` terms.
+- **Show only results with OCR highlights** filters each page to matches reported
+  in Tesseract's PDF OCR field or an image's main text field. This is a highlight filter, not a native OCR-only query;
+  pages can be empty while more results remain. Use **Next Page** (⌘→) and
+  **Previous Page** (⌘←). Recent files and WebDAV searches are capped at 200; narrow
+  the query or browse folders when the command shows that limit.
+- **Download File** (⌘D) streams the selected file to your Mac's `~/Downloads`,
+  preserves existing files by adding a numbered suffix, and offers **Show in
+  Finder**. Downloads have a 30-minute timeout and remove partial files on failure.
+  To download a folder's files, open the folder and select individual files.
+- **Create Share Link** creates a public link with view/download access, an expiry
+  date (seven days by default), and an optional password. Server sharing policy
+  still applies. **Manage Share Links** lists and copies existing public links and
+  lets you revoke a selected link after confirmation. **Copy Nextcloud File Link**
+  copies an ordinary authenticated link without creating a public share.
+
+Full-text search requires the Nextcloud `fulltextsearch`, `files_fulltextsearch`
+and `fulltextsearch_elasticsearch` apps and an indexed Elasticsearch backend. OCR
+requires `files_fulltextsearch_tesseract`, Tesseract, and completed OCR indexing.
+PDF OCR uses a separate index field; image OCR is stored as main document text.
+OCR languages, PDF page limits and reindexing are server settings; changing search
+options does not rerun OCR. Search goes through Nextcloud's authenticated remote
+search API, which enforces the account's access, without exposing Elasticsearch.
+If full-text search is unavailable, select **File Names (WebDAV)** explicitly.
+
+API references: [WebDAV search](https://docs.nextcloud.com/server/stable/developer_manual/client_apis/WebDAV/search.html),
+[downloads and folder operations](https://docs.nextcloud.com/server/stable/developer_manual/client_apis/WebDAV/basic.html),
+[sharing](https://docs.nextcloud.com/server/stable/developer_manual/client_apis/OCS/ocs-share-api.html),
+and [Nextcloud full-text search](https://github.com/nextcloud/fulltextsearch).
+
 ## Companion scripts
 
 Three rows depend on small server-side scripts that are not part of this repository.
@@ -185,6 +231,7 @@ Leave their URLs empty and the rows simply do not appear.
 ```sh
 npm run dev        # build, install and hot-reload on save
 npm run typecheck  # tsc
+npm run test:nextcloud # Nextcloud search, downloads and shares regression tests
 npm run test:paperless # Paperless API regression tests (no live credentials needed)
 npm run lint       # ray lint (macOS only); npm run lint:local runs eslint anywhere
 npm run gen:env    # regenerate .env.example from package.json
