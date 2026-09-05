@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "homelab",
   "title": "Homelab",
-  "description": "Your whole homelab in Raycast: stats, downloads, media requests, monitors, music, photos, books, documents, DNS, backups and money — one hub, every service optional.",
+  "description": "Your whole homelab in Raycast: stats, downloads, media requests, monitors, music, photos, books, documents, services, jobs, DNS, backups and money — one hub, every service optional.",
   "icon": "icon.png",
   "author": "aleksandar",
   "license": "MIT",
@@ -171,6 +171,21 @@
         "docker",
         "stack",
         "restart"
+      ]
+    },
+    {
+      "name": "services",
+      "title": "Services & Jobs",
+      "subtitle": "Homelab",
+      "description": "Native systemd services and scheduled jobs over SSH: state, last result, next run and logs",
+      "mode": "view",
+      "keywords": [
+        "systemd",
+        "services",
+        "timers",
+        "jobs",
+        "ssh",
+        "logs"
       ]
     },
     {
@@ -761,6 +776,30 @@
       "required": false
     },
     {
+      "name": "servicesSshHost",
+      "title": "Services SSH Host",
+      "description": "SSH destination for Services & Jobs: user@host or an alias from ~/.ssh/config. Uses noninteractive key or agent authentication and a previously trusted host key. Leave empty to disable.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "user@server.example.com"
+    },
+    {
+      "name": "servicesSshPort",
+      "title": "Services SSH Port",
+      "description": "Optional SSH port (1–65535). Leave empty to use your SSH configuration or port 22.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "22"
+    },
+    {
+      "name": "servicesSshIdentityFile",
+      "title": "Services SSH Identity File",
+      "description": "Optional path to your local SSH private key; ~/ is supported. Leave empty to use your SSH configuration or agent. Enter a file path, never the key itself.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "~/.ssh/id_ed25519"
+    },
+    {
       "name": "backrestUrl",
       "title": "Backrest URL",
       "description": "Base URL of your Backrest instance. Leave empty to hide Backrest features.",
@@ -881,7 +920,8 @@
     "lint:local": "eslint src",
     "fix-lint": "ray lint --fix",
     "gen:env": "node scripts/gen-env-example.mjs",
-    "test:nextcloud": "node --test scripts/nextcloud-api.test.cjs"
+    "test:nextcloud": "node --test scripts/nextcloud-api.test.cjs",
+    "test:services": "node --test scripts/services-api.test.cjs && python3 scripts/services-jobs.test.py"
   },
   "categories": [
     "Developer Tools",

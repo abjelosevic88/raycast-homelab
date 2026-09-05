@@ -18,6 +18,7 @@ import Photos from "./photos";
 import Audiobooks from "./audiobooks";
 import Calendar from "./calendar";
 import Containers from "./containers";
+import Services from "./services";
 import Metube from "./metube";
 import Disks from "./disks";
 import Jellyfin from "./jellyfin";
@@ -151,6 +152,13 @@ const COMMANDS = [
     subtitle: "Komodo stacks — restart from Raycast",
     icon: Icon.Box,
     view: () => <Containers />,
+  },
+  {
+    name: "services",
+    title: "Services & Jobs",
+    subtitle: "Native services · timers · results · logs",
+    icon: Icon.Terminal,
+    view: () => <Services />,
   },
   {
     name: "metube",

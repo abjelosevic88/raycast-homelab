@@ -1,8 +1,9 @@
 # Homelab for Raycast
 
 Your whole homelab in one Raycast extension: server stats, downloads, media requests,
-uptime monitors, music, photos, audiobooks, ebooks, documents, DNS, containers, backups and money.
-Twenty-four commands, one **Home** hub that ties them together, and a menu bar item.
+uptime monitors, music, photos, audiobooks, ebooks, documents, native services, scheduled
+jobs, DNS, containers, backups and money. Twenty-six commands, including the **Home**
+hub that ties them together and a menu bar item.
 
 Every service is optional. Configure the ones you run, leave the rest empty, and the
 extension hides them.
@@ -57,20 +58,23 @@ extension hides them.
 | **Notifications** | ntfy messages from the last seven days |
 | **Disk Health** | Scrutiny SMART status for every disk |
 | **Containers** | Komodo stacks: state, restart, start, stop |
+| **Services & Jobs** | Native systemd services and timers over SSH: state, last result, next run and recent logs |
 | **AdGuard Home** | Protection toggle, query stats, top blocked, recent log, blocklists |
 | **Upcoming Bills** | Firefly III month spend and subscriptions due |
 | **Add Transaction** | Firefly Pico quick entry with templates |
 
 ## Requirements
 
-- [Raycast](https://raycast.com) on macOS. Windows is untested but should work: the
-  extension is HTTP calls plus the Raycast API, with no shell or AppleScript, and the
-  env file path resolves to `C:\Users\you\.config` there. The one exception is the
-  menu bar command, which depends on Raycast for Windows supporting menu bar extras.
-  If you try it on Windows, open an issue with what works.
+- [Raycast](https://raycast.com) on macOS. Windows is untested; the env file path
+  resolves to `C:\Users\you\.config` there, and the menu bar command depends on
+  Raycast for Windows supporting menu bar extras. The optional Services & Jobs
+  command requires OpenSSH available as `ssh`; other commands use HTTP and the
+  Raycast API. If you try it on Windows, open an issue with what works.
 - [Node.js](https://nodejs.org) 20 or newer (`brew install node`)
 - Network access to your services. Over Tailscale or a VPN is fine, the extension only
-  needs to reach the URLs you configure.
+  needs to reach the URLs you configure, plus SSH for Services & Jobs if enabled.
+- For Services & Jobs: a Linux server with Python 3.9+, `systemctl` with JSON output
+  support, and `journalctl` available to your SSH account. No server daemon installation is needed.
 
 ## Install
 
@@ -92,12 +96,12 @@ Keep the folder where it is. Raycast links to the build output inside it.
 
 ## Configure
 
-There are two ways to enter URLs and keys. They can be mixed.
+There are two ways to enter service settings. They can be mixed.
 
 ### 1. Raycast preferences
 
-Open any command, press `⌘K` → **Configure Extension**. Every service has a URL field and
-its credential fields. Fill in the ones you run.
+Open any command, press `⌘K` → **Configure Extension**. Fill in the URLs and credentials
+for the services you run, or the SSH settings for Services & Jobs.
 
 ### 2. Env file
 
@@ -144,6 +148,7 @@ The env file is read once per command launch. After editing it, re-run the comma
 | ntfy | `NTFY_URL`, `NTFY_TOPICS` | Comma-separated topics |
 | AdGuard Home | `ADGUARD_URL`, `ADGUARD_USERNAME`, `ADGUARD_PASSWORD` | Web UI login |
 | Komodo | `KOMODO_URL`, `KOMODO_API_KEY`, `KOMODO_API_SECRET` | Settings → Profile → API keys |
+| Services & Jobs | `SERVICES_SSH_HOST`, optional `SERVICES_SSH_PORT`, `SERVICES_SSH_IDENTITY_FILE` | SSH account with noninteractive key or agent authentication and a trusted host key. See setup below. |
 | Backrest | `BACKREST_URL`, `BACKREST_USERNAME`, `BACKREST_PASSWORD` | Web UI login |
 | Scrutiny | `SCRUTINY_URL` | No auth |
 | Speedtest Tracker | `SPEEDTEST_URL` | Legacy open `/api/speedtest/latest` endpoint |
@@ -154,6 +159,48 @@ The env file is read once per command launch. After editing it, re-run the comma
 
 `.env.example` lists every key with its description. Regenerate it after changing
 preferences in `package.json` with `npm run gen:env`.
+
+### Services & Jobs
+
+Set **Services SSH Host** to `user@server.example.com`, or an existing alias from
+`~/.ssh/config`. **Services SSH Port** is optional; when empty, OpenSSH uses its
+configuration or port 22. **Services SSH Identity File** optionally selects a local
+private key, with `~/` expanded to your home directory. Enter the key's file path,
+never its contents. The equivalent env settings are:
+
+```dotenv
+SERVICES_SSH_HOST=user@server.example.com
+SERVICES_SSH_PORT=
+SERVICES_SSH_IDENTITY_FILE=
+```
+
+On your Mac, first connect manually with `ssh user@server.example.com` (or your
+SSH alias, adding `-p`/`-i` if needed). Verify the host key and complete your normal
+SSH setup. The extension uses OpenSSH with strict known-host checking and
+noninteractive authentication, so your key or SSH agent must work without a
+password or passphrase prompt. A passphrase-protected key can be loaded into your
+agent before opening the command.
+
+Open **Services & Jobs** from Raycast or Homelab Home. Search and filter native
+services and scheduled jobs in the system scope and your SSH user's scope. Each
+entry shows its current state; timer jobs also show the last result and next run
+when systemd provides them. Open an entry for details or recent journal logs.
+Refresh updates the snapshot. Failed connections remain visible, cached results
+are marked stale, and a scope that cannot be read is reported explicitly while
+available results remain usable.
+
+The command streams its bundled Python collector over SSH and uses read-only
+`systemctl` and `journalctl` queries. Nothing is installed on the server, no daemon
+is required, and it never invokes `sudo`. User units belong to the SSH account,
+whose systemd user manager must be available. System journal visibility depends
+on that account's existing permissions; missing access can limit the logs shown.
+
+Statuses describe systemd's current state, not a durable execution history.
+An inactive oneshot that finished successfully is normal and appears as completed.
+An overdue timer means its next deadline is in the past by more than its scheduling
+accuracy or 60 seconds, whichever is longer; a running job is shown as running. Calendar runs skipped while the server
+was off cannot be reconstructed from this snapshot. Use your existing job alerts
+and backup history when you need proof that every expected run completed.
 
 ### Paperless Search
 
@@ -233,6 +280,7 @@ npm run dev        # build, install and hot-reload on save
 npm run typecheck  # tsc
 npm run test:nextcloud # Nextcloud search, downloads and shares regression tests
 npm run test:paperless # Paperless API regression tests (no live credentials needed)
+npm run test:services # SSH transport and systemd collector regression tests
 npm run lint       # ray lint (macOS only); npm run lint:local runs eslint anywhere
 npm run gen:env    # regenerate .env.example from package.json
 ```
