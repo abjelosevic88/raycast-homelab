@@ -38,7 +38,7 @@ extension hides them.
 |---|---|
 | **Homelab Home** | One place for everything: live status rows, every command, quick links. Esc returns here. |
 | **Homelab Stats** | CPU, memory, disks, uptime, temperatures, NAS pool, top processes |
-| **Homelab Menu Bar** | CPU load and temperature in the menu bar, alerts when something is down |
+| **Homelab Menu Bar** | CPU load and temperature in the menu bar, alerts when something is down (macOS only) |
 | **Homelab Downloads** | qBittorrent, SABnzbd and slskd activity, pause and resume |
 | **Discover Media** | Browse trending and popular, search, and request movies and shows in Jellyseerr |
 | **Request History** | Pending and past Jellyseerr requests: approve, decline, retry, delete |
@@ -67,8 +67,9 @@ extension hides them.
 ## Requirements
 
 - [Raycast](https://raycast.com) on macOS or Windows. On Windows the env file lives at
-  `C:\Users\you\.config\raycast-homelab\.env`, and the menu bar command depends on
-  Raycast for Windows supporting menu bar extras. Services & Jobs and optional
+  `C:\Users\you\.config\raycast-homelab\.env`. Raycast for Windows does not support
+  menu bar commands yet, so Homelab Menu Bar is hidden there; every other command works
+  (tested by [FlowV4](https://www.reddit.com/u/FlowV4)). Services & Jobs and optional
   backup storage measurements require OpenSSH available as `ssh` (built into Windows 10+);
   other features use HTTP and the Raycast API.
 - [Node.js](https://nodejs.org) 20 or newer (`brew install node`)
