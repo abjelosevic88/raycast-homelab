@@ -37,7 +37,7 @@ extension hides them.
 |---|---|
 | **Homelab Home** | One place for everything: live status rows, every command, quick links. Esc returns here. |
 | **Homelab Stats** | CPU, memory, disks, uptime, temperatures, NAS pool, top processes |
-| **Homelab Menu Bar** | CPU load and temperature in the macOS menu bar, alerts when something is down |
+| **Homelab Menu Bar** | CPU load and temperature in the menu bar, alerts when something is down |
 | **Homelab Downloads** | qBittorrent, SABnzbd and slskd activity, pause and resume |
 | **Discover Media** | Browse trending and popular, search, and request movies and shows in Jellyseerr |
 | **Request History** | Pending and past Jellyseerr requests: approve, decline, retry, delete |
@@ -62,7 +62,11 @@ extension hides them.
 
 ## Requirements
 
-- macOS with [Raycast](https://raycast.com)
+- [Raycast](https://raycast.com) on macOS. Windows is untested but should work: the
+  extension is HTTP calls plus the Raycast API, with no shell or AppleScript, and the
+  env file path resolves to `C:\Users\you\.config` there. The one exception is the
+  menu bar command, which depends on Raycast for Windows supporting menu bar extras.
+  If you try it on Windows, open an issue with what works.
 - [Node.js](https://nodejs.org) 20 or newer (`brew install node`)
 - Network access to your services. Over Tailscale or a VPN is fine, the extension only
   needs to reach the URLs you configure.
