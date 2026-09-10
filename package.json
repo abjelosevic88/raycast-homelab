@@ -973,7 +973,6 @@
       "description": "Create an app password in Nextcloud \u2192 Personal settings \u2192 Security.",
       "type": "password",
       "required": false
-<<<<<<< Updated upstream
     },
     {
       "name": "lubeloggerUrl",
@@ -1052,8 +1051,6 @@
           "value": "."
         }
       ]
-||||||| Stash base
-=======
     },
     {
       "name": "searxngUrl",
@@ -1077,7 +1074,6 @@
       "description": "Jellystat → Settings → API Keys.",
       "type": "password",
       "required": false
->>>>>>> Stashed changes
     }
   ],
   "dependencies": {
