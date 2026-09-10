@@ -947,6 +947,13 @@
       "placeholder": "https://git.example.com"
     },
     {
+      "name": "forgejoToken",
+      "title": "Forgejo / Gitea Access Token",
+      "description": "Settings → Applications → Generate token, with read/write on repository, issue and notification. Unlocks the Code screen (repos, pull requests, reviews, Actions).",
+      "type": "password",
+      "required": false
+    },
+    {
       "name": "nextcloudUrl",
       "title": "Nextcloud URL",
       "description": "Base URL of Nextcloud, including its subpath if any.",
@@ -966,6 +973,7 @@
       "description": "Create an app password in Nextcloud \u2192 Personal settings \u2192 Security.",
       "type": "password",
       "required": false
+<<<<<<< Updated upstream
     },
     {
       "name": "lubeloggerUrl",
@@ -1044,6 +1052,32 @@
           "value": "."
         }
       ]
+||||||| Stash base
+=======
+    },
+    {
+      "name": "searxngUrl",
+      "title": "SearXNG URL",
+      "description": "Base URL of your SearXNG instance (JSON API enabled). Leave empty to hide web search.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://search.example.com"
+    },
+    {
+      "name": "jellystatUrl",
+      "title": "Jellystat URL",
+      "description": "Base URL of your Jellystat instance. Leave empty to hide watch statistics.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://jellystat.example.com"
+    },
+    {
+      "name": "jellystatApiKey",
+      "title": "Jellystat API Key",
+      "description": "Jellystat → Settings → API Keys.",
+      "type": "password",
+      "required": false
+>>>>>>> Stashed changes
     }
   ],
   "dependencies": {
